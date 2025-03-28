@@ -5,6 +5,7 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 const App = () => {
   return (
     <NavigationContainer>
+      
       <AuthNavigator />
     </NavigationContainer>
   );

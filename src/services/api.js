@@ -6,6 +6,7 @@ console.log('Current API_URL:', API_URL); // URL'i kontrol etmek için
 
 const api = axios.create({
   baseURL: API_URL,
+  
   headers: {
     'Content-Type': 'application/json',
   },
