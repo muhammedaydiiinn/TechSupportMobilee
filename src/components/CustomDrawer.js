@@ -35,12 +35,16 @@ const CustomDrawer = props => {
     fetchUserProfile();
   }, []);
 
+  // handleLogout fonksiyonu
   const handleLogout = async () => {
     try {
+      // Token'ı sil
       await AsyncStorage.removeItem('authToken');
+      
+      // Auth ekranına yönlendir
       props.navigation.reset({
         index: 0,
-        routes: [{name: 'Auth'}],
+        routes: [{ name: 'Auth' }],
       });
     } catch (error) {
       console.log('Logout error:', error);

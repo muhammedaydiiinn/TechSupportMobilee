@@ -7,7 +7,8 @@ import MainNavigator from './src/navigation/MainNavigator';
 LogBox.ignoreLogs([
   'Animated: `useNativeDriver` was not specified',
   'AsyncStorage has been extracted',
-  "Cannot read property 'makeMutable' of undefined"
+  "Cannot read property 'makeMutable' of undefined",
+  "ViewPropTypes"
 ]);
 
 const App = () => {
