@@ -43,32 +43,53 @@ const RegisterScreen = ({ navigation }) => {
         return;
       }
 
-      await authService.register({
-        email,
-        password,
-        password_confirm: confirmPassword,
-        name: firstName,
-        surname: lastName,
-      });
-      
-      // Başarılı kayıt
-      setSuccess(true);
-      
-      // Form alanlarını temizle
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-      
-      // 3 saniye sonra success mesajını kaldır ve login sayfasına yönlendir
-      setTimeout(() => {
-        setSuccess(false);
-        navigation.navigate('Login');
-      }, 3000);
-      
+      try {
+        // authService.register fonksiyonunu try/catch içerisine aldık
+        const response = await authService.register({
+          email,
+          password,
+          password_confirm: confirmPassword,
+          first_name: firstName,
+          last_name: lastName,
+        });
+        
+        // Başarılı kayıt
+        setSuccess(true);
+        
+        // Form alanlarını temizle
+        setFirstName('');
+        setLastName('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        // 3 saniye sonra success mesajını kaldır ve login sayfasına yönlendir
+        setTimeout(() => {
+          setSuccess(false);
+          navigation.navigate('Login');
+        }, 3000);
+        
+      } catch (apiError) {
+        console.log('API Error in Register:', apiError);
+        
+        // API hata mesajını ayıkla
+        if (apiError.api) {
+          // API hata objesinden mesajı çıkartalım
+          const errorMessage = apiError.api.message || 
+                              apiError.api.data?.detail || 
+                              'Kayıt işlemi sırasında bir hata oluştu.';
+          setError(errorMessage);
+        } else if (apiError.response?.data?.detail) {
+          // Direkt response içindeki detail mesajını göster
+          setError(apiError.response.data.detail);
+        } else {
+          // Genel hata mesajı
+          setError('Kayıt işlemi yapılamadı. Lütfen tekrar deneyin.');
+        }
+      }
     } catch (err) {
-      setError(err.message);
+      console.log('Global Error:', err);
+      setError('Beklenmeyen bir hata oluştu.');
     } finally {
       setLoading(false);
     }
@@ -262,4 +283,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default RegisterScreen; 
+export default RegisterScreen;

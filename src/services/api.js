@@ -42,11 +42,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    console.log('API Error Response:', {
+    // Hata detaylarını hazırla
+    const errorData = {
       status: error.response?.status,
       data: error.response?.data,
-      originalError: error
-    });
+      message: error.response?.data?.detail || error.message
+    };
+    
+    console.log('API Error Response:', errorData);
 
     if (error.response?.status === 401) {
       await AsyncStorage.removeItem('access_token');
@@ -64,17 +67,15 @@ export const authService = {
     try {
       console.log('🔐 Giriş denemesi:', { username: email });
 
-      // FormData ile veri gönder
-      const formData = new FormData();
-      formData.append('username', email); // "username" kullanıyorsun
-      formData.append('password', password);
-
-      console.log('📦 Giriş Verisi:', formData);
+      // URL encoded format için URLSearchParams kullan
+      const params = new URLSearchParams();
+      params.append('username', email);
+      params.append('password', password);
 
       const response = await axios({
         method: 'post',
         url: `${API_URL}/auth/login`,
-        data: formData,  // FormData kullanarak veriyi gönder
+        data: params.toString(),
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -83,21 +84,35 @@ export const authService = {
 
       console.log('✅ Giriş başarılı! Status:', response.status);
 
-      // API yanıtını işle
       await AsyncStorage.setItem('authToken', response.data.access_token);
-      return response.data;
+      return {
+        success: true,
+        data: response.data
+      };
     } catch (error) {
       console.log('Login Error:', {
         message: error.message,
         response: error.response?.data,
       });
-      throw error;
+      
+      // Kullanıcı dostu hata mesajı
+      const errorMessage = 
+        error.response?.data?.detail ||
+        (error.response?.status === 401 ? 'Geçersiz kullanıcı adı veya şifre' : 
+         error.message === 'Network Error' ? 'Sunucuya bağlanılamıyor' :
+         'Giriş yapılırken bir hata oluştu');
+      
+      return {
+        success: false,
+        message: errorMessage,
+        error: error.response?.data
+      };
     }
   },
 
-
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
+    console.log('Kayıt:', response.data);
     return response.data;
   },
 
