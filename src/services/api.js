@@ -136,4 +136,87 @@ export const authService = {
   },
 };
 
+export const ticketService = {
+  // Tüm biletleri getir
+  getTickets: async () => {
+    try {
+      const response = await api.get('/tickets');
+      return response.data;
+    } catch (error) {
+      console.log('Get tickets error:', error);
+      throw error;
+    }
+  },
+  
+  // Tek bir bileti getir
+  getTicket: async (ticketId) => {
+    try {
+      const response = await api.get(`/tickets/${ticketId}`);
+      return response.data;
+    } catch (error) {
+      console.log(`Get ticket ${ticketId} error:`, error);
+      throw error;
+    }
+  },
+  
+  // Yeni bilet oluştur (dosya olmadan)
+  createTicket: async (ticketData) => {
+    try {
+      const response = await api.post('/tickets', ticketData);
+      return response.data;
+    } catch (error) {
+      console.log('Create ticket error:', error);
+      throw error;
+    }
+  },
+  
+  // Yeni bilet oluştur (dosya ekleyerek)
+  createTicketWithAttachments: async (formData) => {
+    try {
+      const response = await api.post('/tickets/with-attachments', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.log('Create ticket with attachments error:', error);
+      throw error;
+    }
+  },
+  
+  // Bilet güncelle
+  updateTicket: async (ticketId, ticketData) => {
+    try {
+      const response = await api.put(`/tickets/${ticketId}`, ticketData);
+      return response.data;
+    } catch (error) {
+      console.log(`Update ticket ${ticketId} error:`, error);
+      throw error;
+    }
+  },
+  
+  // Bilete yorum ekle
+  addComment: async (ticketId, comment) => {
+    try {
+      const response = await api.post(`/tickets/${ticketId}/comments`, { comment });
+      return response.data;
+    } catch (error) {
+      console.log(`Add comment to ticket ${ticketId} error:`, error);
+      throw error;
+    }
+  },
+  
+  // Bileti kapat
+  closeTicket: async (ticketId) => {
+    try {
+      const response = await api.put(`/tickets/${ticketId}/close`);
+      return response.data;
+    } catch (error) {
+      console.log(`Close ticket ${ticketId} error:`, error);
+      throw error;
+    }
+  }
+};
+
 export default api;

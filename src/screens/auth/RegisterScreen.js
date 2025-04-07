@@ -6,6 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
@@ -21,6 +25,49 @@ const RegisterScreen = ({ navigation }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Form doğrulama için fonksiyon
+  const validateForm = () => {
+    // Email doğrulama regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!firstName.trim()) {
+      setError('Adınızı girmelisiniz.');
+      return false;
+    }
+    
+    if (!lastName.trim()) {
+      setError('Soyadınızı girmelisiniz.');
+      return false;
+    }
+    
+    if (!email.trim()) {
+      setError('E-posta adresinizi girmelisiniz.');
+      return false;
+    }
+    
+    if (!emailRegex.test(email.trim())) {
+      setError('Geçerli bir e-posta adresi girmelisiniz.');
+      return false;
+    }
+    
+    if (!password) {
+      setError('Şifre girmelisiniz.');
+      return false;
+    }
+    
+    if (password.length < 8) {
+      setError('Şifre en az 8 karakter olmalıdır.');
+      return false;
+    }
+    
+    if (password !== confirmPassword) {
+      setError('Şifreler eşleşmiyor.');
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleRegister = async () => {
     try {
       setLoading(true);
@@ -28,30 +75,31 @@ const RegisterScreen = ({ navigation }) => {
       setSuccess(false);
 
       // Form validasyonu
-      if (!firstName || !lastName || !email || !password || !confirmPassword) {
-        setError('Lütfen tüm alanları doldurun.');
-        return;
-      }
-
-      if (password.length < 8) {
-        setError('Şifre en az 8 karakter olmalıdır.');
-        return;
-      }
-
-      if (password !== confirmPassword) {
-        setError('Şifreler eşleşmiyor.');
+      if (!validateForm()) {
+        setLoading(false);
         return;
       }
 
       try {
-        // authService.register fonksiyonunu try/catch içerisine aldık
-        const response = await authService.register({
-          email,
+        // API isteği için verileri hazırla
+        const userData = {
+          email: email.trim(),
           password,
           password_confirm: confirmPassword,
-          first_name: firstName,
-          last_name: lastName,
+          name: firstName.trim(),
+          surname: lastName.trim(),
+        };
+
+        console.log('Kayıt isteği gönderiliyor:', {
+          ...userData,
+          password: '********',
+          password_confirm: '********'
         });
+        
+        // Register API çağrısı
+        const response = await authService.register(userData);
+        
+        console.log('Kayıt başarılı:', response);
         
         // Başarılı kayıt
         setSuccess(true);
@@ -97,99 +145,112 @@ const RegisterScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.formContainer}>
-        <Text style={styles.title}>Kayıt Ol</Text>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Ad"
-            value={firstName}
-            onChangeText={setFirstName}
-            placeholderTextColor={COLORS.inputText}
-          />
-        </View>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="person-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Soyad"
-            value={lastName}
-            onChangeText={setLastName}
-            placeholderTextColor={COLORS.inputText}
-          />
-        </View>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="E-posta"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor={COLORS.inputText}
-          />
-        </View>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Şifre"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholderTextColor={COLORS.inputText}
-          />
-        </View>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Şifre Tekrarı"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            placeholderTextColor={COLORS.inputText}
-          />
-        </View>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{flex: 1}}
+      >
+        <ScrollView contentContainerStyle={{flexGrow: 1}}>
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Kayıt Ol</Text>
+            
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color={COLORS.inputText} style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Ad"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholderTextColor={COLORS.inputText}
+                autoCapitalize="words"
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={20} color={COLORS.inputText} style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Soyad"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholderTextColor={COLORS.inputText}
+                autoCapitalize="words"
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color={COLORS.inputText} style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="E-posta"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor={COLORS.inputText}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Şifre"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholderTextColor={COLORS.inputText}
+              />
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Şifre Tekrarı"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholderTextColor={COLORS.inputText}
+              />
+            </View>
 
-        {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color="red" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {success ? (
+              <View style={styles.successContainer}>
+                <Ionicons name="checkmark-circle" size={20} color="#45C49C" />
+                <Text style={styles.successText}>
+                  Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...
+                </Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.buttonText}>Kayıt Ol</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Login')}
+              style={styles.loginLink}
+            >
+              <Text style={styles.loginText}>Zaten hesabınız var mı? Giriş Yapın</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
-
-        {success ? (
-          <View style={styles.successContainer}>
-            <Text style={styles.successText}>
-              Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...
-            </Text>
-          </View>
-        ) : null}
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleRegister}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? 'Kaydediliyor...' : 'Kayıt Ol'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Login')}
-          style={styles.loginLink}
-        >
-          <Text style={styles.loginText}>Zaten hesabınız var mı? Giriş Yapın</Text>
-        </TouchableOpacity>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -243,6 +304,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+    alignItems: 'center',
   },
   buttonText: {
     color: COLORS.white,
@@ -258,6 +320,8 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFE7E7',
     padding: 10,
     borderRadius: 5,
@@ -265,12 +329,15 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: 'red',
-    textAlign: 'center',
+    marginLeft: 10,
+    flex: 1,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   successContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#E7F6E7',
     padding: 10,
     borderRadius: 5,
@@ -278,8 +345,8 @@ const styles = StyleSheet.create({
   },
   successText: {
     color: '#45C49C',
-    textAlign: 'center',
-    fontSize: 14,
+    marginLeft: 10,
+    flex: 1,
   },
 });
 
