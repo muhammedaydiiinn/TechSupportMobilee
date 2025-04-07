@@ -1,22 +1,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// @env ile ilgili hatayı düzeltiyoruz
 import { API_URL } from '@env';
 
-console.log('Current API_URL:', API_URL); // URL'i kontrol etmek için
+console.log('Current API_URL:', API_URL);
 
 const api = axios.create({
   baseURL: API_URL,
-  
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
-  // HTTP için güvenlik ayarları
-  httpsAgent: {  
-    rejectUnauthorized: false
-  }
 });
 
-// İstek interceptor'ı
+// Request interceptor - auth token ekle ve istek logla
 api.interceptors.request.use(
   async (config) => {
     // auth/ şeklinde başlayan istekler için URL'i düzelt
@@ -34,12 +32,13 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
+  error => {
+    console.log('❌ İstek Oluşturma Hatası:', error.message);
     return Promise.reject(error);
   }
 );
 
-// Yanıt interceptor'ı
+// Response interceptor - hataları yönet
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -53,30 +52,49 @@ api.interceptors.response.use(
       await AsyncStorage.removeItem('access_token');
     }
     
-    // API'den gelen detaylı hata mesajını al
-    const errorMessage = error.response?.data?.message || 
-                        error.response?.data?.error || 
-                        error.message || 
-                        'Bir hata oluştu. Lütfen tekrar deneyin.';
-    
-    throw new Error(errorMessage);
+    return Promise.reject({
+      ...error,
+      api: errorData // API ile ilgili detaylı hata bilgisi
+    });
   }
 );
 
 export const authService = {
   login: async (email, password) => {
     try {
-      const response = await api.post('auth/login', { email, password });
-      await AsyncStorage.setItem('access_token', response.data.access_token);
+      console.log('🔐 Giriş denemesi:', { username: email });
+
+      // FormData ile veri gönder
+      const formData = new FormData();
+      formData.append('username', email); // "username" kullanıyorsun
+      formData.append('password', password);
+
+      console.log('📦 Giriş Verisi:', formData);
+
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/auth/login`,
+        data: formData,  // FormData kullanarak veriyi gönder
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeout: 10000,
+      });
+
+      console.log('✅ Giriş başarılı! Status:', response.status);
+
+      // API yanıtını işle
+      await AsyncStorage.setItem('authToken', response.data.access_token);
       return response.data;
     } catch (error) {
       console.log('Login Error:', {
         message: error.message,
-        response: error.response?.data
+        response: error.response?.data,
       });
       throw error;
     }
   },
+
 
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
