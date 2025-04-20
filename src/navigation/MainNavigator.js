@@ -1,49 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import AuthNavigator from './AuthNavigator';
-import AppNavigator from './AppNavigator';
-import { COLORS } from '../constants/colors';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useAuth } from '../contexts/AuthContext';
 
-const Stack = createStackNavigator();
+// Auth Screens
+import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+
+// App Navigator
+import DrawerNavigator from './DrawerNavigator';
+
+const Stack = createNativeStackNavigator();
 
 const MainNavigator = () => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [userToken, setUserToken] = useState(null);
-
-  useEffect(() => {
-    // Check if user is logged in
-    const bootstrapAsync = async () => {
-      try {
-        const token = await AsyncStorage.getItem('authToken');
-        setUserToken(token);
-      } catch (e) {
-        console.log('Failed to load token', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    bootstrapAsync();
-  }, []);
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return null; // veya bir loading screen
   }
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {userToken ? (
-          <Stack.Screen name="App" component={AppNavigator} />
+        {!isAuthenticated ? (
+          // Auth Stack
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </>
         ) : (
-          <Stack.Screen name="Auth" component={AuthNavigator} />
+          // App Stack
+          <Stack.Screen name="App" component={DrawerNavigator} />
         )}
       </Stack.Navigator>
     </NavigationContainer>

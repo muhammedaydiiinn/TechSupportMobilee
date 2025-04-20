@@ -12,10 +12,9 @@ import {
   ScrollView,
   Alert
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
-import { authService } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { CommonActions } from '@react-navigation/native';
 
 const LoginScreen = ({ navigation }) => {
@@ -23,8 +22,8 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { login } = useAuth();
 
-  // Form validasyonu
   const validateForm = () => {
     if (!email.trim()) {
       setError('E-posta adresi gereklidir.');
@@ -44,49 +43,25 @@ const LoginScreen = ({ navigation }) => {
       setLoading(true);
       setError('');
 
-      // Form validasyonu
       if (!validateForm()) {
         setLoading(false);
         return;
       }
 
-      console.log('Attempting login with:', { email }); // Debug log
-      const response = await authService.login(email.trim(), password);
-      console.log('Login response:', response); // Debug log
-     
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [
-            { name: 'App' },
-          ],
-        })
-      );
+      const result = await login(email.trim(), password);
       
-    
-    } catch (error) {
-      console.log('Login Error Details:', {
-        message: error.message,
-        stack: error.stack,
-        originalError: error
-      });
-      
-      // Hata mesajını daha anlaşılır hale getir
-      let errorMessage = error.message;
-      if (errorMessage.includes('Network Error')) {
-        errorMessage = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.';
-      }
-
-      console.log('Login error:', error);
-      
-      if (error.api) {
-        setError(error.api.message || 'Giriş yapılamadı. Kimlik bilgilerinizi kontrol edin.');
-      } else if (error.message) {
-        setError(error.message);
+      if (result.success) {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Dashboard' }],
+          })
+        );
       } else {
-        setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
+        setError(result.message);
       }
-     
+    } catch (error) {
+      setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -97,7 +72,6 @@ const LoginScreen = ({ navigation }) => {
     setEmail("test@example.com");
     setPassword("password123");
     
-    // Bir süre bekleyerek textInput'ların güncellenmesini sağlayalım
     setTimeout(() => {
       handleLogin();
     }, 100);

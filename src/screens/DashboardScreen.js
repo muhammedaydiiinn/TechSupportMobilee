@@ -10,6 +10,7 @@ import {
 import { COLORS } from '../constants/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { ticketService, authService } from '../services/api';
+import TokenService from '../services/TokenService';
 
 const DashboardScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
@@ -20,13 +21,31 @@ const DashboardScreen = ({ navigation }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      
+      // Token kontrolü
+      const token = await TokenService.getToken();
+      console.log('Dashboard - Current token:', token);
+      
+      if (!token) {
+        console.log('Dashboard - No token found, redirecting to login');
+        navigation.navigate('Login');
+        return;
+      }
+
       const userData = await authService.getProfile();
+      console.log('Dashboard - User data:', userData);
+      
       const ticketsData = await ticketService.getTickets();
+      console.log('Dashboard - Tickets data:', ticketsData);
       
       setUser(userData);
       setTickets(ticketsData.slice(0, 5)); // Son 5 bileti göster
     } catch (error) {
-      console.log('Dashboard data fetch error:', error);
+      console.error('Dashboard data fetch error:', error);
+      if (error.response?.status === 401) {
+        console.log('Dashboard - 401 error, redirecting to login');
+        navigation.navigate('Login');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

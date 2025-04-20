@@ -1,5 +1,6 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import TokenService from './TokenService';
 // @env ile ilgili hatayı düzeltiyoruz
 import { API_URL } from '@env';
 
@@ -14,50 +15,77 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - auth token ekle ve istek logla
+// Hata mesajlarını yöneten yardımcı fonksiyon
+const getErrorMessage = (error) => {
+  if (error.response?.data?.detail) return error.response.data.detail;
+  if (error.response?.status === 401) return 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.';
+  if (error.response?.status === 403) return 'Bu işlem için yetkiniz bulunmuyor.';
+  if (error.response?.status === 404) return 'İstenilen kaynak bulunamadı.';
+  if (error.response?.status === 500) return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+  return 'Beklenmeyen bir hata oluştu.';
+};
+
+// Request interceptor
 api.interceptors.request.use(
   async (config) => {
-    // auth/ şeklinde başlayan istekler için URL'i düzelt
     if (config.url.startsWith('auth/')) {
       config.url = `/${config.url}`;
     }
     
-    console.log('Full Request URL:', `${config.baseURL}${config.url}`);
-    console.log('Request Method:', config.method);
-    console.log('Request Data:', config.data);
-    
-    const token = await AsyncStorage.getItem('access_token');
+    const token = await TokenService.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   error => {
-    console.log('❌ İstek Oluşturma Hatası:', error.message);
+    console.error('❌ İstek Oluşturma Hatası:', error.message);
     return Promise.reject(error);
   }
 );
 
-// Response interceptor - hataları yönet
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Hata detaylarını hazırla
+    const originalRequest = error.config;
+
+    // 401 hatası ve refresh token varsa
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = await TokenService.getRefreshToken();
+        if (refreshToken) {
+          // Refresh token ile yeni access token al
+          const response = await axios.post(`${API_URL}/auth/refresh`, {
+            refresh_token: refreshToken
+          });
+          
+          const { access_token } = response.data;
+          await TokenService.setToken(access_token);
+          
+          // Yeni token ile orijinal isteği tekrarla
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        console.error('Token yenileme hatası:', refreshError);
+        await TokenService.clearAllTokens();
+        return Promise.reject(refreshError);
+      }
+    }
+
     const errorData = {
       status: error.response?.status,
       data: error.response?.data,
-      message: error.response?.data?.detail || error.message
+      message: getErrorMessage(error)
     };
     
-    console.log('API Error Response:', errorData);
-
-    if (error.response?.status === 401) {
-      await AsyncStorage.removeItem('access_token');
-    }
-    
+    console.error('API Error Response:', errorData);
     return Promise.reject({
       ...error,
-      api: errorData // API ile ilgili detaylı hata bilgisi
+      api: errorData
     });
   }
 );
@@ -65,9 +93,6 @@ api.interceptors.response.use(
 export const authService = {
   login: async (email, password) => {
     try {
-      console.log('🔐 Giriş denemesi:', { username: email });
-
-      // URL encoded format için URLSearchParams kullan
       const params = new URLSearchParams();
       params.append('username', email);
       params.append('password', password);
@@ -82,31 +107,25 @@ export const authService = {
         timeout: 10000,
       });
 
-      console.log('✅ Giriş başarılı! Status:', response.status);
-
-      await AsyncStorage.setItem('authToken', response.data.access_token);
       return {
         success: true,
         data: response.data
       };
     } catch (error) {
-      console.log('Login Error:', {
-        message: error.message,
-        response: error.response?.data,
-      });
-      
-      // Kullanıcı dostu hata mesajı
-      const errorMessage = 
-        error.response?.data?.detail ||
-        (error.response?.status === 401 ? 'Geçersiz kullanıcı adı veya şifre' : 
-         error.message === 'Network Error' ? 'Sunucuya bağlanılamıyor' :
-         'Giriş yapılırken bir hata oluştu');
-      
       return {
         success: false,
-        message: errorMessage,
+        message: getErrorMessage(error),
         error: error.response?.data
       };
+    }
+  },
+
+  refreshToken: async (refreshToken) => {
+    try {
+      const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
+      return response.data;
+    } catch (error) {
+      throw error;
     }
   },
 

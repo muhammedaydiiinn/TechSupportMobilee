@@ -2,6 +2,7 @@ import 'react-native-reanimated';
 import React from 'react';
 import { LogBox } from 'react-native';
 import MainNavigator from './src/navigation/MainNavigator';
+import { AuthProvider } from './src/contexts/AuthContext';
 
 // Uyarıları görmezden gel
 LogBox.ignoreLogs([
@@ -12,7 +13,11 @@ LogBox.ignoreLogs([
 ]);
 
 const App = () => {
-  return <MainNavigator />;
+  return (
+    <AuthProvider>
+      <MainNavigator />
+    </AuthProvider>
+  );
 };
 
 export default App;
