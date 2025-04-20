@@ -124,63 +124,57 @@ export default function CreateTicketScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title.trim() || !formData.description.trim()) {
-      Alert.alert('Hata', 'Başlık ve açıklama alanları zorunludur');
-      return;
-    }
-
     try {
-      setLoading(true);
-      
-      // Token kontrolü
-      const token = await TokenService.getToken();
-      if (!token) {
-        navigation.navigate('Login');
+      if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.priority) {
+        Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
         return;
       }
 
-      // 1. Önce ticket'ı oluştur
+      const token = await TokenService.getToken();
+      if (!token) {
+        Alert.alert('Hata', 'Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
+        return;
+      }
+
       const ticketData = {
         title: formData.title.trim(),
         description: formData.description.trim(),
         category: formData.category,
-        priority: formData.priority
+        priority: formData.priority,
       };
 
-      const response = await ticketService.createTicket(ticketData);
-      
-      if (response.success && response.data?.id) {
-        // 2. Eğer dosya varsa, dosyaları yükle
-        if (formData.attachments.length > 0) {
-          try {
-            await uploadAttachments(response.data.id, formData.attachments);
-          } catch (error) {
-            Alert.alert('Uyarı', 'Ticket oluşturuldu fakat dosyalar yüklenemedi. Daha sonra tekrar deneyebilirsiniz.');
+      const result = await ticketService.createTicket(ticketData);
+      if (!result.success) {
+        Alert.alert('Hata', result.message);
+        return;
+      }
+
+      if (formData.attachments && formData.attachments.length > 0) {
+        for (const file of formData.attachments) {
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', {
+            uri: file.uri,
+            type: file.type || 'image/jpeg',
+            name: file.fileName || `file-${Date.now()}.jpg`
+          });
+
+          const uploadResult = await ticketService.uploadFiles(result.data.id, uploadFormData);
+          if (!uploadResult.success) {
+            Alert.alert('Uyarı', `Dosya yüklenemedi: ${uploadResult.message}`);
+            continue;
           }
         }
+      }
 
-        Alert.alert('Başarılı', 'Ticket başarıyla oluşturuldu', [
-          { text: 'Tamam', onPress: () => navigation.navigate('TicketList') }
-        ]);
-      } else {
-        Alert.alert('Hata', response.message || 'Ticket oluşturulurken bir hata oluştu');
-      }
+      Alert.alert('Başarılı', 'Ticket başarıyla oluşturuldu', [
+        {
+          text: 'Tamam',
+          onPress: () => navigation.goBack(),
+        },
+      ]);
     } catch (error) {
-      console.error('Ticket oluşturma hatası:', error.response?.data || error);
-      
-      if (error.response?.status === 401) {
-        // Token geçersiz, login sayfasına yönlendir
-        await TokenService.clearTokens();
-        navigation.navigate('Login');
-      } else if (error.response?.status === 422) {
-        // Validasyon hatası
-        const errorMessage = error.response.data?.detail || 'Gönderilen veriler geçersiz';
-        Alert.alert('Hata', errorMessage);
-      } else {
-        Alert.alert('Hata', 'Ticket oluşturulurken bir hata oluştu');
-      }
-    } finally {
-      setLoading(false);
+      console.error('Ticket oluşturma hatası:', error);
+      Alert.alert('Hata', 'Ticket oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
     }
   };
 

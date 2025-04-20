@@ -178,22 +178,20 @@ export const ticketService = {
     }
   },
 
-  createTicket: async (formData) => {
+  createTicket: async (ticketData) => {
     try {
-      console.log('Ticket oluşturma isteği:', formData);
-      const response = await api.post('/tickets/', formData, {
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-      });
-      console.log('Ticket başarıyla oluşturuldu:', response.data);
-      return { success: true, data: response.data };
+      console.log('Ticket oluşturma isteği:', ticketData);
+      const response = await api.post('/tickets/', ticketData);
+      console.log('Ticket oluşturma başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data,
+      };
     } catch (error) {
-      console.error('Ticket oluşturma hatası:', error);
+      console.error('Ticket oluşturma hatası:', error.response?.data || error);
       return {
         success: false,
-        message: error.response?.data?.detail || 'Ticket oluşturulurken bir hata oluştu'
+        message: error.response?.data?.detail || 'Ticket oluşturulurken bir hata oluştu',
       };
     }
   },
@@ -229,7 +227,30 @@ export const ticketService = {
       console.error('Ticket Kapatma Hatası:', error);
       throw error;
     }
-  }
+  },
+
+  uploadFiles: async (ticketId, formData) => {
+    try {
+      console.log('Dosya yükleme isteği:', { ticketId, formData });
+      const response = await api.post(`/tickets/${ticketId}/attachments`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json'
+        },
+      });
+      console.log('Dosya yükleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error('Dosya yükleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Dosyalar yüklenirken bir hata oluştu',
+      };
+    }
+  },
 };
 
 export const userService = {
