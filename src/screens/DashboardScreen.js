@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,71 +6,99 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { ticketService, authService } from '../services/api';
 import TokenService from '../services/TokenService';
+import { useAuth } from '../contexts/AuthContext';
+import { Card } from '../components/Card';
+import { colors } from '../theme/colors';
 
 const DashboardScreen = ({ navigation }) => {
-  const [user, setUser] = useState(null);
-  const [tickets, setTickets] = useState([]);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [tickets, setTickets] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    open: 0,
+    inProgress: 0,
+    closed: 0
+  });
 
-  const fetchData = async () => {
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Token kontrolü
-      const token = await TokenService.getToken();
-      console.log('Dashboard - Current token:', token);
-      
-      if (!token) {
-        console.log('Dashboard - No token found, redirecting to login');
-        navigation.navigate('Login');
-        return;
-      }
-
-      const userData = await authService.getProfile();
-      console.log('Dashboard - User data:', userData);
+      setError(null);
       
       const ticketsData = await ticketService.getTickets();
-      console.log('Dashboard - Tickets data:', ticketsData);
+      setTickets(ticketsData);
+
+      // İstatistikleri hesapla
+      const stats = {
+        total: ticketsData.length,
+        open: ticketsData.filter(t => t.status === 'open').length,
+        inProgress: ticketsData.filter(t => t.status === 'in_progress').length,
+        closed: ticketsData.filter(t => t.status === 'closed').length
+      };
       
-      setUser(userData);
-      setTickets(ticketsData.slice(0, 5)); // Son 5 bileti göster
+      setStats(stats);
     } catch (error) {
       console.error('Dashboard data fetch error:', error);
-      if (error.response?.status === 401) {
-        console.log('Dashboard - 401 error, redirecting to login');
-        navigation.navigate('Login');
-      }
+      setError('Veriler yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-        <Text style={styles.headerSubtitle}>Destek Sistemi</Text>
+        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.email}</Text>
+      </View>
+
+      <View style={styles.statsContainer}>
+        <Card style={styles.statCard}>
+          <Text style={styles.statNumber}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Toplam Ticket</Text>
+        </Card>
+
+        <Card style={styles.statCard}>
+          <Text style={styles.statNumber}>{stats.open}</Text>
+          <Text style={styles.statLabel}>Açık</Text>
+        </Card>
+
+        <Card style={styles.statCard}>
+          <Text style={styles.statNumber}>{stats.inProgress}</Text>
+          <Text style={styles.statLabel}>İşlemde</Text>
+        </Card>
+
+        <Card style={styles.statCard}>
+          <Text style={styles.statNumber}>{stats.closed}</Text>
+          <Text style={styles.statLabel}>Kapalı</Text>
+        </Card>
       </View>
 
       <View style={styles.cardsContainer}>
@@ -129,47 +157,12 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         ) : (
-          tickets.map((ticket) => (
-            <TouchableOpacity
-              key={ticket.id}
-              style={styles.ticketItem}
-              onPress={() => navigation.navigate('TicketDetail', { ticketId: ticket.id })}
-            >
-              <View style={styles.ticketHeader}>
-                <Text style={styles.ticketTitle} numberOfLines={1}>
-                  {ticket.title}
-                </Text>
-                <View style={[
-                  styles.statusBadge,
-                  { backgroundColor: ticket.status === 'open' ? '#E3F2FD' : '#E8F5E9' }
-                ]}>
-                  <Text style={[
-                    styles.statusText,
-                    { color: ticket.status === 'open' ? '#1976D2' : '#388E3C' }
-                  ]}>
-                    {ticket.status === 'open' ? 'Açık' : 'Çözümlendi'}
-                  </Text>
-                </View>
-              </View>
-              
-              <Text style={styles.ticketDescription} numberOfLines={2}>
-                {ticket.description}
-              </Text>
-              
-              <View style={styles.ticketFooter}>
-                <Text style={styles.ticketDate}>
-                  {new Date(ticket.created_at).toLocaleDateString('tr-TR')}
-                </Text>
-                <View style={styles.priorityContainer}>
-                  <Text style={[
-                    styles.priorityText,
-                    { color: getPriorityColor(ticket.priority) }
-                  ]}>
-                    {getPriorityText(ticket.priority)}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+          tickets.slice(0, 5).map((ticket) => (
+            <Card key={ticket.id} style={styles.ticketCard}>
+              <Text style={styles.ticketTitle}>{ticket.title}</Text>
+              <Text style={styles.ticketStatus}>Durum: {ticket.status}</Text>
+              <Text style={styles.ticketPriority}>Öncelik: {ticket.priority}</Text>
+            </Card>
           ))
         )}
       </View>
@@ -177,46 +170,56 @@ const DashboardScreen = ({ navigation }) => {
   );
 };
 
-// Yardımcı fonksiyonlar
-const getPriorityColor = (priority) => {
-  switch (priority) {
-    case 'low': return '#43A047';
-    case 'normal': return '#1E88E5';
-    case 'high': return '#FB8C00';
-    case 'urgent': return '#E53935';
-    default: return '#1E88E5';
-  }
-};
-
-const getPriorityText = (priority) => {
-  switch (priority) {
-    case 'low': return 'Düşük';
-    case 'normal': return 'Normal';
-    case 'high': return 'Yüksek';
-    case 'urgent': return 'Acil';
-    default: return 'Normal';
-  }
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 16,
+    textAlign: 'center',
   },
   header: {
-    backgroundColor: COLORS.primary,
     padding: 20,
-    paddingTop: 40,
-    paddingBottom: 40,
+    backgroundColor: colors.primary,
   },
-  headerTitle: {
+  welcomeText: {
+    color: colors.white,
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.white,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+  statsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 10,
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    width: '48%',
+    marginBottom: 10,
+    padding: 15,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: colors.text,
     marginTop: 5,
   },
   cardsContainer: {
@@ -227,7 +230,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
   },
   card: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 10,
     padding: 20,
     width: '48%',
@@ -250,16 +253,16 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 5,
   },
   cardSubtitle: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: colors.text,
     textAlign: 'center',
   },
   infoSection: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     margin: 15,
     borderRadius: 10,
     padding: 20,
@@ -272,12 +275,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 10,
   },
   infoText: {
     fontSize: 14,
-    color: COLORS.text,
+    color: colors.text,
     lineHeight: 24,
   },
   recentTicketsContainer: {
@@ -291,15 +294,15 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: colors.primary,
   },
   loadingText: {
     textAlign: 'center',
-    color: COLORS.textLight,
+    color: colors.textLight,
     padding: 20,
   },
   emptyContainer: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     borderRadius: 10,
     padding: 20,
     alignItems: 'center',
@@ -310,74 +313,37 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   emptyText: {
-    color: COLORS.textLight,
+    color: colors.textLight,
     marginBottom: 15,
   },
   createButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 5,
   },
   createButtonText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '500',
   },
-  ticketItem: {
-    backgroundColor: COLORS.white,
-    borderRadius: 10,
+  ticketCard: {
+    marginBottom: 10,
     padding: 15,
-    marginBottom: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
   },
   ticketTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    flex: 1,
+    fontWeight: 'bold',
+    color: colors.text,
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 15,
-    marginLeft: 10,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  ticketDescription: {
+  ticketStatus: {
     fontSize: 14,
-    color: COLORS.textLight,
-    marginBottom: 10,
+    color: colors.text,
+    marginTop: 5,
   },
-  ticketFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  ticketDate: {
-    fontSize: 12,
-    color: COLORS.textLight,
-  },
-  priorityContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 15,
-  },
-  priorityText: {
-    fontSize: 12,
-    fontWeight: '500',
+  ticketPriority: {
+    fontSize: 14,
+    color: colors.text,
+    marginTop: 5,
   },
 });
 

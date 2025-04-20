@@ -1,13 +1,12 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import TokenService from './TokenService';
-// @env ile ilgili hatayı düzeltiyoruz
 import { API_URL } from '@env';
+import { reset } from '../navigation/RootNavigation';
 
 console.log('Current API_URL:', API_URL);
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: `${API_URL}`,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -17,225 +16,243 @@ const api = axios.create({
 
 // Hata mesajlarını yöneten yardımcı fonksiyon
 const getErrorMessage = (error) => {
-  if (error.response?.data?.detail) return error.response.data.detail;
-  if (error.response?.status === 401) return 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.';
-  if (error.response?.status === 403) return 'Bu işlem için yetkiniz bulunmuyor.';
-  if (error.response?.status === 404) return 'İstenilen kaynak bulunamadı.';
-  if (error.response?.status === 500) return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
-  return 'Beklenmeyen bir hata oluştu.';
+  const errorDetails = {
+    status: error.response?.status,
+    statusText: error.response?.statusText,
+    data: error.response?.data,
+    message: error.message,
+    config: {
+      url: error.config?.url,
+      method: error.config?.method,
+      headers: error.config?.headers,
+      params: error.config?.params,
+      data: error.config?.data,
+    }
+  };
+  
+  console.log('API Hata Detayları:', JSON.stringify(errorDetails, null, 2));
+
+  if (error.response?.data?.detail) {
+    return error.response.data.detail;
+  }
+  
+  if (error.response?.status === 401) {
+    return 'Oturum süreniz doldu. Lütfen tekrar giriş yapın.';
+  }
+  
+  if (error.response?.status === 403) {
+    return 'Bu işlem için yetkiniz bulunmuyor.';
+  }
+  
+  if (error.response?.status === 404) {
+    return 'İstenilen kaynak bulunamadı.';
+  }
+  
+  if (error.response?.status === 500) {
+    return 'Sunucu hatası oluştu. Lütfen daha sonra tekrar deneyin.';
+  }
+
+  return 'Beklenmeyen bir hata oluştu. Lütfen daha sonra tekrar deneyin.';
 };
 
 // Request interceptor
 api.interceptors.request.use(
   async (config) => {
-    if (config.url.startsWith('auth/')) {
-      config.url = `/${config.url}`;
+    try {
+      const token = await TokenService.getToken();
+      console.log('Token durumu:', token ? 'Token mevcut' : 'Token yok');
+      
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log('İstek başlıkları:', config.headers);
+      }
+      
+      return config;
+    } catch (error) {
+      console.error('Token alınırken hata:', error);
+      return Promise.reject(error);
     }
-    
-    const token = await TokenService.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
   },
-  error => {
-    console.error('❌ İstek Oluşturma Hatası:', error.message);
+  (error) => {
+    console.error('İstek hatası:', error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API yanıtı:', {
+      url: response.config.url,
+      method: response.config.method,
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
   async (error) => {
-    const originalRequest = error.config;
+    console.error('API hatası:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data
+    });
 
-    // 401 hatası ve refresh token varsa
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      
+    if (error.response?.status === 401) {
+      console.log('401 hatası - Yetkisiz erişim');
       try {
-        const refreshToken = await TokenService.getRefreshToken();
-        if (refreshToken) {
-          // Refresh token ile yeni access token al
-          const response = await axios.post(`${API_URL}/auth/refresh`, {
-            refresh_token: refreshToken
-          });
-          
-          const { access_token } = response.data;
-          await TokenService.setToken(access_token);
-          
-          // Yeni token ile orijinal isteği tekrarla
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        console.error('Token yenileme hatası:', refreshError);
         await TokenService.clearAllTokens();
-        return Promise.reject(refreshError);
+        reset('Login');
+      } catch (clearError) {
+        console.error('Token temizleme hatası:', clearError);
       }
     }
-
-    const errorData = {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: getErrorMessage(error)
-    };
     
-    console.error('API Error Response:', errorData);
-    return Promise.reject({
-      ...error,
-      api: errorData
-    });
+    return Promise.reject(error);
   }
 );
 
 export const authService = {
   login: async (email, password) => {
     try {
-      const params = new URLSearchParams();
-      params.append('username', email);
-      params.append('password', password);
+      console.log('Login İsteği Başlatılıyor:', { email });
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
 
-      const response = await axios({
-        method: 'post',
-        url: `${API_URL}/auth/login`,
-        data: params.toString(),
+      const response = await axios.post(`${API_URL}/auth/login`, formData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
         },
-        timeout: 10000,
       });
+      
+      console.log('Login Başarılı:', response.data);
+      const { access_token } = response.data;
+      
+      if (!access_token) {
+        throw new Error('Access token eksik');
+      }
 
-      return {
-        success: true,
-        data: response.data
-      };
+      await TokenService.setToken(access_token);
+      return { success: true, data: response.data };
     } catch (error) {
+      const errorMessage = getErrorMessage(error);
       return {
         success: false,
-        message: getErrorMessage(error),
+        message: errorMessage,
         error: error.response?.data
       };
     }
   },
 
-  refreshToken: async (refreshToken) => {
+  logout: async () => {
     try {
-      const response = await api.post('/auth/refresh', { refresh_token: refreshToken });
-      return response.data;
+      await TokenService.clearAllTokens();
+      return { success: true };
     } catch (error) {
-      throw error;
+      console.error('Logout Hatası:', error);
+      return { success: false, message: 'Çıkış yapılırken bir hata oluştu' };
     }
-  },
-
-  register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
-    console.log('Kayıt:', response.data);
-    return response.data;
-  },
-
-  forgotPassword: async (email) => {
-    const response = await api.post('/auth/forgot-password', { email });
-    return response.data;
-  },
-
-  resetPassword: async (token, newPassword, newPasswordConfirm) => {
-    const response = await api.post('/auth/reset-password', {
-      token,
-      new_password: newPassword,
-      new_password_confirm: newPasswordConfirm,
-    });
-    return response.data;
-  },
-
-  getProfile: async () => {
-    const response = await api.get('/auth/me');
-    return response.data;
   },
 };
 
 export const ticketService = {
-  // Tüm biletleri getir
-  getTickets: async () => {
+  getTickets: async (skip = 0, limit = 100) => {
     try {
-      const response = await api.get('/tickets');
-      return response.data;
-    } catch (error) {
-      console.log('Get tickets error:', error);
-      throw error;
-    }
-  },
-  
-  // Tek bir bileti getir
-  getTicket: async (ticketId) => {
-    try {
-      const response = await api.get(`/tickets/${ticketId}`);
-      return response.data;
-    } catch (error) {
-      console.log(`Get ticket ${ticketId} error:`, error);
-      throw error;
-    }
-  },
-  
-  // Yeni bilet oluştur (dosya olmadan)
-  createTicket: async (ticketData) => {
-    try {
-      const response = await api.post('/tickets', ticketData);
-      return response.data;
-    } catch (error) {
-      console.log('Create ticket error:', error);
-      throw error;
-    }
-  },
-  
-  // Yeni bilet oluştur (dosya ekleyerek)
-  createTicketWithAttachments: async (formData) => {
-    try {
-      const response = await api.post('/tickets/with-attachments', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      console.log('Ticket Listesi İsteği Başlatılıyor:', { skip, limit });
+      const response = await api.get('/tickets/', {
+        params: { skip, limit }
       });
       return response.data;
     } catch (error) {
-      console.log('Create ticket with attachments error:', error);
+      console.error('Ticket Listesi Hatası:', error);
       throw error;
     }
   },
-  
-  // Bilet güncelle
+
+  getTicket: async (ticketId) => {
+    try {
+      console.log('Ticket detayları getiriliyor:', ticketId);
+      const response = await api.get(`/tickets/${ticketId}`);
+      console.log('Ticket detayları başarıyla alındı:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Ticket detayları alınırken hata:', error);
+      throw error;
+    }
+  },
+
+  createTicket: async (ticketData) => {
+    try {
+      console.log('Ticket oluşturma isteği:', ticketData);
+      const response = await api.post('/tickets', ticketData);
+      console.log('Ticket başarıyla oluşturuldu:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Ticket oluşturma hatası:', error);
+      throw error;
+    }
+  },
+
   updateTicket: async (ticketId, ticketData) => {
     try {
+      console.log('Ticket Güncelleme İsteği Başlatılıyor:', { ticketId, ticketData });
       const response = await api.put(`/tickets/${ticketId}`, ticketData);
       return response.data;
     } catch (error) {
-      console.log(`Update ticket ${ticketId} error:`, error);
+      console.error('Ticket Güncelleme Hatası:', error);
       throw error;
     }
   },
-  
-  // Bilete yorum ekle
+
   addComment: async (ticketId, comment) => {
     try {
+      console.log('Yorum Ekleme İsteği Başlatılıyor:', { ticketId, comment });
       const response = await api.post(`/tickets/${ticketId}/comments`, { comment });
       return response.data;
     } catch (error) {
-      console.log(`Add comment to ticket ${ticketId} error:`, error);
+      console.error('Yorum Ekleme Hatası:', error);
       throw error;
     }
   },
-  
-  // Bileti kapat
+
   closeTicket: async (ticketId) => {
     try {
+      console.log('Ticket Kapatma İsteği Başlatılıyor:', { ticketId });
       const response = await api.put(`/tickets/${ticketId}/close`);
       return response.data;
     } catch (error) {
-      console.log(`Close ticket ${ticketId} error:`, error);
+      console.error('Ticket Kapatma Hatası:', error);
       throw error;
     }
   }
 };
 
-export default api;
+export const userService = {
+  getUserDetails: async (userId) => {
+    try {
+      console.log('Kullanıcı detayları getiriliyor:', userId);
+      const response = await api.get(`/auth/admin/users/${userId}`);
+      console.log('Kullanıcı detayları başarıyla alındı:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Kullanıcı detayları alınırken hata:', error);
+      throw error;
+    }
+  },
+
+  getCurrentUser: async () => {
+    try {
+      console.log('Mevcut kullanıcı bilgileri getiriliyor');
+      const response = await api.get('/users/me');
+      console.log('Mevcut kullanıcı bilgileri başarıyla alındı:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Mevcut kullanıcı bilgileri alınırken hata:', error);
+      throw error;
+    }
+  }
+};
+
+export { api };

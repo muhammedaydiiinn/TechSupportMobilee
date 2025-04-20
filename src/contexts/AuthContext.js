@@ -1,20 +1,14 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import TokenService from '../services/TokenService';
 import { authService } from '../services/api';
+import { jwtDecode } from 'jwt-decode';
 
-const AuthContext = createContext({
-  user: null,
-  isAuthenticated: false,
-  isLoading: true,
-  login: async () => {},
-  logout: async () => {},
-  updateUser: async () => {}
-});
+const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     checkAuth();
@@ -23,69 +17,93 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const token = await TokenService.getToken();
+      console.log('Token kontrolü:', token ? 'Token bulundu' : 'Token bulunamadı');
+      
       if (token) {
-        const userData = await authService.getProfile();
-        setUser(userData);
-        setIsAuthenticated(true);
+        try {
+          const decoded = jwtDecode(token);
+          setUser({
+            id: decoded.sub,
+            email: decoded.email,
+            role: decoded.role,
+          });
+        } catch (decodeError) {
+          console.error('Token çözümleme hatası:', decodeError);
+          await TokenService.clearAllTokens();
+        }
       }
     } catch (error) {
-      console.error('Auth kontrolü başarısız:', error);
+      console.error('Oturum kontrolü hatası:', error);
+      // Hata durumunda token'ı temizle
       await TokenService.clearAllTokens();
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const login = async (email, password) => {
     try {
+      setLoading(true);
+      setError(null);
+      
       const response = await authService.login(email, password);
+      
       if (response.success) {
-        await TokenService.setToken(response.data.access_token);
-        if (response.data.refresh_token) {
-          await TokenService.setRefreshToken(response.data.refresh_token);
-        }
-        const userData = await authService.getProfile();
-        setUser(userData);
-        setIsAuthenticated(true);
+        const decoded = jwtDecode(response.data.access_token);
+        setUser({
+          id: decoded.sub,
+          email: decoded.email,
+          role: decoded.role,
+        });
         return { success: true };
+      } else {
+        setError(response.message);
+        return { success: false, message: response.message };
       }
-      return { success: false, message: response.message };
     } catch (error) {
       console.error('Giriş hatası:', error);
-      return { success: false, message: error.message };
+      setError('Giriş yapılırken bir hata oluştu');
+      return { success: false, message: 'Giriş yapılırken bir hata oluştu' };
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      await TokenService.clearAllTokens();
+      setLoading(true);
+      await authService.logout();
       setUser(null);
-      setIsAuthenticated(false);
+      return { success: true };
     } catch (error) {
       console.error('Çıkış hatası:', error);
+      setError('Çıkış yapılırken bir hata oluştu');
+      return { success: false, message: 'Çıkış yapılırken bir hata oluştu' };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateUser = async (userData) => {
-    setUser(userData);
+  const value = {
+    user,
+    loading,
+    error,
+    login,
+    logout,
+    isAuthenticated: !!user,
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        isLoading,
-        login,
-        logout,
-        updateUser
-      }}
-    >
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
-
-export default AuthContext; 
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}; 

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  SafeAreaView,
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -16,12 +15,14 @@ const CustomDrawerContent = ({ navigation, onLogout }) => {
 
   const menuItems = [
     { name: 'Dashboard', icon: 'home', label: 'Ana Sayfa' },
+    { name: 'CreateTicket', icon: 'add-circle', label: 'Yeni Bilet Oluştur' },
+    { name: 'MyTickets', icon: 'list', label: 'Biletlerim' },
     { name: 'Profile', icon: 'person', label: 'Profil' },
     { name: 'Settings', icon: 'settings', label: 'Ayarlar' },
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <View style={styles.avatarContainer}>
@@ -29,10 +30,10 @@ const CustomDrawerContent = ({ navigation, onLogout }) => {
           </View>
           <View style={styles.userDetails}>
             <Text style={styles.userName} numberOfLines={1}>
-              {user?.name || 'Kullanıcı'}
+              {user?.first_name} {user?.last_name}
             </Text>
             <Text style={styles.userEmail} numberOfLines={1}>
-              {user?.email || 'email@example.com'}
+              {user?.email}
             </Text>
           </View>
         </View>
@@ -66,20 +67,20 @@ const CustomDrawerContent = ({ navigation, onLogout }) => {
           </View>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.white,
+    paddingTop: 0,
   },
   header: {
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.white,
   },
   userInfo: {
     flexDirection: 'row',
@@ -104,7 +105,6 @@ const styles = StyleSheet.create({
   menuContainer: {
     flex: 1,
     paddingTop: 20,
-    backgroundColor: COLORS.white,
   },
   menuItem: {
     paddingVertical: 12,
@@ -132,7 +132,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    backgroundColor: COLORS.white,
   },
   logoutButton: {
     backgroundColor: COLORS.primary,

@@ -1,125 +1,60 @@
 import React from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useAuth } from '../contexts/AuthContext';
 import { COLORS } from '../constants/colors';
-import CustomDrawer from '../components/CustomDrawer';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 
-// Ekranlar
-import DashboardScreen from '../screens/DashboardScreen';
-import CreateTicketScreen from '../screens/tickets/CreateTicketScreen';
-import MyTicketsScreen from '../screens/tickets/MyTicketsScreen';
-import TicketDetailScreen from '../screens/tickets/TicketDetailScreen';
-import ProfileScreen from '../screens/ProfileScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+// Auth Screens
+import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
 
-const Drawer = createDrawerNavigator();
+// Main App Navigator
+import DrawerNavigator from './DrawerNavigator';
+
 const Stack = createStackNavigator();
 
-// Bilet işlemleri için stack navigator
-const TicketsStack = () => (
-  <Stack.Navigator
-    screenOptions={{
-      headerStyle: {
-        backgroundColor: COLORS.primary,
-      },
-      headerTintColor: COLORS.white,
-      headerTitleStyle: {
-        fontWeight: 'bold',
-      },
-    }}
-  >
-    <Stack.Screen 
-      name="MyTickets" 
-      component={MyTicketsScreen} 
-      options={{ title: 'Biletlerim' }}
-    />
-    <Stack.Screen 
-      name="CreateTicket" 
-      component={CreateTicketScreen} 
-      options={{ title: 'Yeni Destek Bileti' }}
-    />
-    <Stack.Screen 
-      name="TicketDetail" 
-      component={TicketDetailScreen} 
-      options={{ title: 'Bilet Detayları' }}
-    />
-  </Stack.Navigator>
-);
+export const navigationRef = React.createRef();
 
-// Ana drawer navigator
 const AppNavigator = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
-    <Drawer.Navigator
-      drawerContent={(props) => <CustomDrawer {...props} />}
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-        },
-        headerTintColor: COLORS.white,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        drawerActiveTintColor: COLORS.primary,
-        drawerInactiveTintColor: COLORS.text,
-        drawerLabelStyle: {
-          marginLeft: -25,
-          fontSize: 15,
-        },
-      }}
-    >
-      <Drawer.Screen 
-        name="Dashboard" 
-        component={DashboardScreen}
-        options={{
-          title: 'Ana Sayfa',
-          drawerIcon: ({color}) => (
-            <Ionicons name="home-outline" size={22} color={color} />
-          )
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+          },
+          headerTintColor: COLORS.white,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
         }}
-      />
-      <Drawer.Screen 
-        name="TicketsStack" 
-        component={TicketsStack}
-        options={{
-          title: 'Destek Biletleri',
-          drawerIcon: ({color}) => (
-            <Ionicons name="document-text-outline" size={22} color={color} />
-          ),
-          headerShown: false
-        }}
-      />
-      <Drawer.Screen 
-        name="CreateTicket" 
-        component={CreateTicketScreen}
-        options={{
-          title: 'Yeni Bilet Oluştur',
-          drawerIcon: ({color}) => (
-            <Ionicons name="add-circle-outline" size={22} color={color} />
-          )
-        }}
-      />
-      <Drawer.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        options={{
-          title: 'Profilim',
-          drawerIcon: ({color}) => (
-            <Ionicons name="person-outline" size={22} color={color} />
-          )
-        }}
-      />
-      <Drawer.Screen 
-        name="Settings" 
-        component={SettingsScreen}
-        options={{
-          title: 'Ayarlar',
-          drawerIcon: ({color}) => (
-            <Ionicons name="settings-outline" size={22} color={color} />
-          )
-        }}
-      />
-    </Drawer.Navigator>
+      >
+        {!isAuthenticated ? (
+          // Auth Stack
+          <>
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="Register" 
+              component={RegisterScreen}
+              options={{ headerShown: false }}
+            />
+          </>
+        ) : (
+          // Main App Stack
+          <Stack.Screen 
+            name="Main" 
+            component={DrawerNavigator}
+            options={{ headerShown: false }}
+          />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 };
 

@@ -11,6 +11,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import CreateTicketScreen from '../screens/tickets/CreateTicketScreen';
 import MyTicketsScreen from '../screens/tickets/MyTicketsScreen';
+import TicketDetailScreen from '../screens/tickets/TicketDetailScreen';
 
 // Components
 import CustomDrawerContent from '../components/CustomDrawerContent';
@@ -52,6 +53,7 @@ const DrawerNavigator = () => {
         drawerStyle: {
           backgroundColor: COLORS.white,
           width: '80%',
+          marginTop: 0,
         },
         drawerActiveTintColor: COLORS.primary,
         drawerInactiveTintColor: COLORS.text,
@@ -89,6 +91,14 @@ const DrawerNavigator = () => {
           drawerIcon: ({ color }) => (
             <Ionicons name="list" size={22} color={color} />
           ),
+        }}
+      />
+      <Drawer.Screen 
+        name="TicketDetail" 
+        component={TicketDetailScreen}
+        options={{
+          title: 'Bilet Detayı',
+          drawerItemStyle: { display: 'none' },
         }}
       />
       <Drawer.Screen 

@@ -15,366 +15,217 @@ import { Picker } from '@react-native-picker/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
 import { launchImageLibrary } from 'react-native-image-picker';
-
-// Bu servisin oluşturulması gerekecek
 import { ticketService } from '../../services/api';
+import { colors } from '../../theme/colors';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../contexts/AuthContext';
 
-const CreateTicketScreen = ({ navigation }) => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('normal');
-  const [category, setCategory] = useState('');
-  const [attachments, setAttachments] = useState([]);
+const CreateTicketScreen = () => {
+  const navigation = useNavigation();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    department_id: user?.department_id || null,
+    priority: null
+  });
 
-  const priorityOptions = [
-    { label: 'Düşük', value: 'low' },
-    { label: 'Normal', value: 'normal' },
-    { label: 'Yüksek', value: 'high' },
-    { label: 'Acil', value: 'urgent' },
+  const priorities = [
+    { value: 'LOW', label: 'Düşük' },
+    { value: 'MEDIUM', label: 'Orta' },
+    { value: 'HIGH', label: 'Yüksek' },
+    { value: 'URGENT', label: 'Acil' }
   ];
-
-  const categoryOptions = [
-    { label: 'Teknik Sorun', value: 'technical' },
-    { label: 'Fatura', value: 'billing' },
-    { label: 'Hesap', value: 'account' },
-    { label: 'Diğer', value: 'other' },
-  ];
-
-  const pickImage = async () => {
-    const options = {
-      mediaType: 'photo',
-      quality: 0.8,
-      maxWidth: 500,
-      maxHeight: 500,
-      includeBase64: false,
-    };
-
-    launchImageLibrary(options, (response) => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorCode) {
-        console.log('ImagePicker Error: ', response.errorMessage);
-        Alert.alert('Hata', 'Görüntü yüklenirken bir hata oluştu.');
-      } else {
-        // Başarılı seçim
-        const selectedAsset = response.assets[0];
-        setAttachments([...attachments, selectedAsset]);
-      }
-    });
-  };
-
-  const removeAttachment = (index) => {
-    const newAttachments = [...attachments];
-    newAttachments.splice(index, 1);
-    setAttachments(newAttachments);
-  };
 
   const handleSubmit = async () => {
+    if (!formData.title.trim() || !formData.description.trim()) {
+      Alert.alert('Hata', 'Başlık ve açıklama alanları zorunludur');
+      return;
+    }
+
     try {
       setLoading(true);
-      setError('');
-
-      // Validasyon
-      if (!title || !description || !category) {
-        setError('Lütfen gerekli alanları doldurunuz.');
-        return;
-      }
-
-      // Form verilerini oluştur
       const ticketData = {
-        title,
-        description,
-        priority,
-        category,
+        ...formData,
+        department_id: user?.department_id
       };
-
-      // Dosya eklemesi varsa
-      if (attachments.length > 0) {
-        // Dosya eklemek için formData kullan
-        const formData = new FormData();
-        
-        // Ticket verilerini ekle
-        Object.keys(ticketData).forEach(key => {
-          formData.append(key, ticketData[key]);
-        });
-        
-        // Dosyaları ekle
-        attachments.forEach((file, index) => {
-          const fileUri = Platform.OS === 'ios' ? file.uri.replace('file://', '') : file.uri;
-          formData.append('files', {
-            uri: fileUri,
-            type: 'image/jpeg',
-            name: `photo_${index}.jpg`,
-          });
-        });
-        
-        // API isteği gönder
-        await ticketService.createTicketWithAttachments(formData);
-      } else {
-        // Dosya eklemesi yoksa direkt JSON gönder
-        await ticketService.createTicket(ticketData);
-      }
-
-      Alert.alert(
-        'Başarılı',
-        'Destek biletiniz başarıyla oluşturuldu.',
-        [
-          { 
-            text: 'Tamam', 
-            onPress: () => navigation.navigate('MyTickets') 
-          }
-        ]
-      );
+      
+      const response = await ticketService.createTicket(ticketData);
+      Alert.alert('Başarılı', 'Ticket başarıyla oluşturuldu', [
+        { text: 'Tamam', onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
-      console.log('Create ticket error:', error);
-      if (error.api?.message) {
-        setError(error.api.message);
-      } else {
-        setError('Bilet oluşturulurken bir hata oluştu.');
-      }
+      console.error('Ticket oluşturma hatası:', error);
+      Alert.alert('Hata', 'Ticket oluşturulurken bir hata oluştu');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Yeni Destek Bileti Oluştur</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Konu</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Destek talebinizin konusu"
-              value={title}
-              onChangeText={setTitle}
-              placeholderTextColor={COLORS.inputText}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Kategori</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={category}
-                onValueChange={(itemValue) => setCategory(itemValue)}
-                style={styles.picker}
-              >
-                <Picker.Item label="Kategori seçin" value="" />
-                {categoryOptions.map((item) => (
-                  <Picker.Item 
-                    key={item.value} 
-                    label={item.label} 
-                    value={item.value} 
-                  />
-                ))}
-              </Picker>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Öncelik</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={priority}
-                onValueChange={(itemValue) => setPriority(itemValue)}
-                style={styles.picker}
-              >
-                {priorityOptions.map((item) => (
-                  <Picker.Item 
-                    key={item.value} 
-                    label={item.label} 
-                    value={item.value} 
-                  />
-                ))}
-              </Picker>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Açıklama</Text>
-            <TextInput
-              style={styles.textArea}
-              placeholder="Sorununuzu detaylı bir şekilde açıklayın..."
-              value={description}
-              onChangeText={setDescription}
-              multiline={true}
-              numberOfLines={6}
-              textAlignVertical="top"
-              placeholderTextColor={COLORS.inputText}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Dosya Ekle</Text>
-            <TouchableOpacity 
-              style={styles.attachButton}
-              onPress={pickImage}
-            >
-              <Ionicons name="attach-outline" size={20} color={COLORS.primary} />
-              <Text style={styles.attachButtonText}>Dosya Seç</Text>
-            </TouchableOpacity>
-
-            {attachments.length > 0 && (
-              <View style={styles.attachmentsContainer}>
-                {attachments.map((file, index) => (
-                  <View key={index} style={styles.attachmentItem}>
-                    <Text style={styles.attachmentName} numberOfLines={1}>
-                      Dosya {index + 1}
-                    </Text>
-                    <TouchableOpacity 
-                      onPress={() => removeAttachment(index)}
-                      style={styles.removeButton}
-                    >
-                      <Ionicons name="close-circle" size={20} color="red" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={styles.buttonText}>Bileti Oluştur</Text>
-            )}
-          </TouchableOpacity>
+    <ScrollView style={styles.container}>
+      <View style={styles.form}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Başlık *</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.title}
+            onChangeText={(text) => setFormData({ ...formData, title: text })}
+            placeholder="Ticket başlığını girin"
+            placeholderTextColor={colors.textLight}
+          />
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Açıklama *</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={formData.description}
+            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            placeholder="Ticket açıklamasını girin"
+            placeholderTextColor={colors.textLight}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Öncelik</Text>
+          <View style={styles.priorityContainer}>
+            {priorities.map((priority) => (
+              <TouchableOpacity
+                key={priority.value}
+                style={[
+                  styles.priorityButton,
+                  formData.priority === priority.value && styles.priorityButtonActive
+                ]}
+                onPress={() => setFormData({ ...formData, priority: priority.value })}
+              >
+                <Text
+                  style={[
+                    styles.priorityButtonText,
+                    formData.priority === priority.value && styles.priorityButtonTextActive
+                  ]}
+                >
+                  {priority.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.departmentInfo}>
+          <Text style={styles.departmentLabel}>Departman:</Text>
+          <Text style={styles.departmentValue}>{user?.department_name || 'Belirtilmemiş'}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.submitButtonText}>Ticket Oluştur</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
-  formContainer: {
+  form: {
     padding: 20,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 20,
-  },
   inputGroup: {
-    marginBottom: 15,
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
     marginBottom: 8,
-    color: COLORS.text,
   },
   input: {
-    backgroundColor: COLORS.inputBackground,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
+    backgroundColor: colors.white,
     borderRadius: 8,
     padding: 12,
-    color: COLORS.text,
     fontSize: 16,
-  },
-  pickerContainer: {
-    backgroundColor: COLORS.inputBackground,
+    color: colors.text,
     borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  picker: {
-    color: COLORS.text,
+    borderColor: colors.border,
   },
   textArea: {
-    backgroundColor: COLORS.inputBackground,
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 8,
-    padding: 12,
-    color: COLORS.text,
-    fontSize: 16,
-    minHeight: 120,
+    height: 120,
+    textAlignVertical: 'top',
   },
-  attachButton: {
+  priorityContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-    padding: 12,
-    borderRadius: 8,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  priorityButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderStyle: 'dashed',
+    borderColor: colors.border,
   },
-  attachButtonText: {
-    color: COLORS.primary,
-    marginLeft: 8,
+  priorityButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  attachmentsContainer: {
-    marginTop: 10,
+  priorityButtonText: {
+    fontSize: 14,
+    color: colors.text,
   },
-  attachmentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(33, 150, 243, 0.1)',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 5,
+  priorityButtonTextActive: {
+    color: colors.white,
   },
-  attachmentName: {
-    flex: 1,
-    color: COLORS.text,
-  },
-  removeButton: {
-    padding: 2,
-  },
-  errorContainer: {
-    backgroundColor: '#FFE7E7',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 15,
-  },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    padding: 15,
+  submitButton: {
+    backgroundColor: colors.primary,
+    padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 20,
   },
-  buttonDisabled: {
+  submitButtonDisabled: {
     opacity: 0.7,
   },
-  buttonText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
+  submitButtonText: {
+    color: colors.white,
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  departmentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  departmentLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    marginRight: 8,
+  },
+  departmentValue: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '500',
   },
 });
 

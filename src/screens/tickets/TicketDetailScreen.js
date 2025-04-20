@@ -8,63 +8,53 @@ import {
   ActivityIndicator,
   TextInput
 } from 'react-native';
-import { COLORS } from '../../constants/colors';
+import { useRoute, useNavigation } from '@react-navigation/native';
+import { ticketService } from '../../services/api';
+import { userService } from '../../services/api';
+import { Card } from '../../components/Card';
+import { colors } from '../../theme/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
-const TicketDetailScreen = ({ route, navigation }) => {
+export default function TicketDetailScreen() {
+  const route = useRoute();
+  const navigation = useNavigation();
   const { ticketId } = route.params;
-  const [ticket, setTicket] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [ticket, setTicket] = useState(null);
+  const [createdBy, setCreatedBy] = useState(null);
+  const [assignedTo, setAssignedTo] = useState(null);
   const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     fetchTicketDetails();
-  }, []);
+  }, [ticketId]);
 
   const fetchTicketDetails = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Simulate API call
-      setTimeout(() => {
-        const dummyTicket = {
-          id: ticketId,
-          title: 'Internet bağlantı sorunu',
-          description: 'İnternetim sık sık kesiliyor. 3 gündür devam ediyor. Modem resetleme işlemini gerçekleştirdim ancak sorun devam ediyor. Teknik destek talep ediyorum.',
-          status: 'open',
-          priority: 'high',
-          created_at: '2023-09-15T10:30:00',
-          category: 'technical',
-          comments: [
-            {
-              id: 1,
-              user: 'Teknik Destek',
-              message: 'Merhaba, sorununuz için üzgünüz. Lütfen modem model bilginizi paylaşır mısınız?',
-              created_at: '2023-09-15T11:15:00',
-              is_staff: true
-            },
-            {
-              id: 2,
-              user: 'Mustafa Yılmaz',
-              message: 'Modem modelim TP-Link Archer C6.',
-              created_at: '2023-09-15T12:30:00',
-              is_staff: false
-            }
-          ]
-        };
-        setTicket(dummyTicket);
-        setLoading(false);
-      }, 1000);
-      
-      // In a real app, you would use:
-      // const response = await ticketService.getTicket(ticketId);
-      // setTicket(response);
-      
+      // Ticket detaylarını al
+      const ticketData = await ticketService.getTicket(ticketId);
+      setTicket(ticketData);
+
+      // Oluşturan kullanıcı bilgilerini al
+      if (ticketData.created_by_id) {
+        const creator = await userService.getUserDetails(ticketData.created_by_id);
+        setCreatedBy(creator);
+      }
+
+      // Atanan kullanıcı bilgilerini al
+      if (ticketData.assigned_to_id) {
+        const assigned = await userService.getUserDetails(ticketData.assigned_to_id);
+        setAssignedTo(assigned);
+      }
     } catch (error) {
-      console.log(`Error fetching ticket ${ticketId}:`, error);
-      setError('Bilet detayları yüklenirken bir hata oluştu.');
+      console.error('Ticket detay hatası:', error);
+      setError('Ticket detayları yüklenirken bir hata oluştu');
+    } finally {
       setLoading(false);
     }
   };
@@ -87,7 +77,7 @@ const TicketDetailScreen = ({ route, navigation }) => {
       
       setTicket({
         ...ticket,
-        comments: [...ticket.comments, newCommentObj]
+        comments: [...(ticket.comments || []), newCommentObj]
       });
       setNewComment('');
       
@@ -114,214 +104,192 @@ const TicketDetailScreen = ({ route, navigation }) => {
     }
   };
 
+  const getStatusColor = (status) => {
+    return colors.status[status] || colors.text;
+  };
+
+  const getPriorityColor = (priority) => {
+    return colors.priority[priority] || colors.text;
+  };
+
+  const getStatusText = (status) => {
+    const statusMap = {
+      open: 'Açık',
+      in_progress: 'İşlemde',
+      closed: 'Kapalı',
+      resolved: 'Çözüldü'
+    };
+    return statusMap[status] || status;
+  };
+
+  const getPriorityText = (priority) => {
+    const priorityMap = {
+      low: 'Düşük',
+      medium: 'Orta',
+      high: 'Yüksek',
+      critical: 'Kritik'
+    };
+    return priorityMap[priority] || priority;
+  };
+
   if (loading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Bilet detayları yükleniyor...</Text>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Ionicons name="alert-circle-outline" size={50} color={COLORS.error} />
+      <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={fetchTicketDetails}
-        >
-          <Text style={styles.retryButtonText}>Tekrar Dene</Text>
-        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>Ticket bulunamadı</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+    <ScrollView style={styles.container}>
+      <Card style={styles.headerCard}>
         <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Text style={styles.ticketTitle}>{ticket.title}</Text>
-            <View style={[
-              styles.statusBadge,
-              { backgroundColor: ticket.status === 'open' ? '#E3F2FD' : '#E8F5E9' }
-            ]}>
-              <Text style={[
-                styles.statusText,
-                { color: ticket.status === 'open' ? '#1976D2' : '#388E3C' }
-              ]}>
-                {ticket.status === 'open' ? 'Açık' : 'Çözümlendi'}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.metaInfo}>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Tarih:</Text>
-              <Text style={styles.metaValue}>{new Date(ticket.created_at).toLocaleDateString('tr-TR')}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Kategori:</Text>
-              <Text style={styles.metaValue}>{getCategoryText(ticket.category)}</Text>
-            </View>
-            <View style={styles.metaItem}>
-              <Text style={styles.metaLabel}>Öncelik:</Text>
-              <Text style={[
-                styles.priorityText,
-                { color: getPriorityColor(ticket.priority) }
-              ]}>
-                {getPriorityText(ticket.priority)}
-              </Text>
-            </View>
+          <Text style={styles.title}>{ticket?.title}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket?.status) }]}>
+            <Text style={styles.statusText}>{getStatusText(ticket?.status)}</Text>
           </View>
         </View>
-        
-        <View style={styles.content}>
-          <Text style={styles.sectionTitle}>Açıklama</Text>
-          <Text style={styles.description}>{ticket.description}</Text>
-          
-          <View style={styles.divider} />
-          
-          <Text style={styles.sectionTitle}>Yorumlar</Text>
-          
-          {ticket.comments.length === 0 ? (
-            <Text style={styles.noCommentsText}>Henüz yorum bulunmamaktadır.</Text>
-          ) : (
-            ticket.comments.map(comment => (
-              <View 
-                key={comment.id} 
-                style={[
-                  styles.commentItem,
-                  comment.is_staff && styles.staffCommentItem
-                ]}
-              >
-                <View style={styles.commentHeader}>
-                  <Text style={styles.commentUser}>{comment.user}</Text>
-                  <Text style={styles.commentDate}>
-                    {new Date(comment.created_at).toLocaleString('tr-TR')}
-                  </Text>
-                </View>
-                <Text style={styles.commentMessage}>{comment.message}</Text>
-              </View>
-            ))
-          )}
+
+        <View style={styles.priorityContainer}>
+          <Text style={[styles.priorityText, { color: getPriorityColor(ticket?.priority) }]}>
+            Öncelik: {getPriorityText(ticket?.priority)}
+          </Text>
         </View>
-      </ScrollView>
-      
-      {ticket.status === 'open' && (
-        <View style={styles.footer}>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Yanıtınızı yazın..."
-              value={newComment}
-              onChangeText={setNewComment}
-              multiline
-            />
-            <TouchableOpacity 
-              style={[styles.sendButton, !newComment.trim() && styles.disabledButton]}
-              onPress={handleSendComment}
-              disabled={!newComment.trim()}
+
+        <Text style={styles.description}>{ticket?.description}</Text>
+
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <Ionicons name="calendar-outline" size={20} color={colors.textLight} />
+            <Text style={styles.detailText}>
+              Oluşturulma: {new Date(ticket?.created_at).toLocaleDateString('tr-TR')}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Ionicons name="time-outline" size={20} color={colors.textLight} />
+            <Text style={styles.detailText}>
+              Son Güncelleme: {new Date(ticket?.updated_at).toLocaleDateString('tr-TR')}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={20} color={colors.textLight} />
+            <Text style={styles.detailText}>
+              Oluşturan: {createdBy ? `${createdBy.first_name} ${createdBy.last_name}` : 'Belirtilmemiş'}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Ionicons name="people-outline" size={20} color={colors.textLight} />
+            <Text style={styles.detailText}>
+              Atanan: {assignedTo ? `${assignedTo.first_name} ${assignedTo.last_name}` : 'Atanmamış'}
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      {/* Yorumlar bölümü */}
+      <Card style={styles.commentsCard}>
+        <Text style={styles.sectionTitle}>Yorumlar</Text>
+        {(!ticket.comments || ticket.comments.length === 0) ? (
+          <Text style={styles.noCommentsText}>Henüz yorum bulunmamaktadır.</Text>
+        ) : (
+          ticket.comments.map(comment => (
+            <View 
+              key={comment.id} 
+              style={[
+                styles.commentItem,
+                comment.is_staff && styles.staffCommentItem
+              ]}
             >
-              <Ionicons name="send" size={20} color={COLORS.white} />
-            </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.closeTicketButton}
+              <View style={styles.commentHeader}>
+                <Text style={styles.commentUser}>{comment.user}</Text>
+                <Text style={styles.commentDate}>
+                  {new Date(comment.created_at).toLocaleString('tr-TR')}
+                </Text>
+              </View>
+              <Text style={styles.commentMessage}>{comment.message}</Text>
+            </View>
+          ))
+        )}
+      </Card>
+
+      {/* İşlem butonları */}
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: colors.primary }]}
+          onPress={() => navigation.navigate('AddComment', { ticketId })}
+        >
+          <Ionicons name="chatbubble-outline" size={20} color={colors.white} />
+          <Text style={styles.actionButtonText}>Yorum Ekle</Text>
+        </TouchableOpacity>
+
+        {ticket.status !== 'closed' && (
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.error }]}
             onPress={handleCloseTicket}
           >
-            <Text style={styles.closeTicketText}>Bileti Kapat</Text>
+            <Ionicons name="close-circle-outline" size={20} color={colors.white} />
+            <Text style={styles.actionButtonText}>Ticket Kapat</Text>
           </TouchableOpacity>
-        </View>
-      )}
-    </View>
+        )}
+      </View>
+    </ScrollView>
   );
-};
-
-// Helper functions
-const getPriorityColor = (priority) => {
-  switch (priority) {
-    case 'low': return '#43A047';
-    case 'normal': return '#1E88E5';
-    case 'high': return '#FB8C00';
-    case 'urgent': return '#E53935';
-    default: return '#1E88E5';
-  }
-};
-
-const getPriorityText = (priority) => {
-  switch (priority) {
-    case 'low': return 'Düşük';
-    case 'normal': return 'Normal';
-    case 'high': return 'Yüksek';
-    case 'urgent': return 'Acil';
-    default: return 'Normal';
-  }
-};
-
-const getCategoryText = (category) => {
-  switch (category) {
-    case 'technical': return 'Teknik';
-    case 'billing': return 'Fatura';
-    case 'account': return 'Hesap';
-    case 'other': return 'Diğer';
-    default: return 'Diğer';
-  }
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
-  centerContent: {
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    color: COLORS.text,
-    fontSize: 16,
-  },
-  errorText: {
-    marginTop: 10,
-    color: COLORS.error,
-    fontSize: 16,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  retryButton: {
-    marginTop: 20,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-  },
-  retryButtonText: {
-    color: COLORS.white,
-    fontSize: 16,
-  },
-  scrollView: {
+  errorContainer: {
     flex: 1,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
-  headerContent: {
+  errorText: {
+    color: colors.error,
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  headerCard: {
+    margin: 15,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 10,
   },
-  ticketTitle: {
-    color: COLORS.white,
-    fontSize: 18,
+  title: {
+    fontSize: 20,
     fontWeight: 'bold',
+    color: colors.text,
     flex: 1,
-    marginRight: 10,
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -329,54 +297,50 @@ const styles = StyleSheet.create({
     borderRadius: 15,
   },
   statusText: {
-    fontSize: 12,
+    color: colors.white,
     fontWeight: '500',
   },
-  metaInfo: {
-    flexDirection: 'row',
-    marginTop: 15,
-  },
-  metaItem: {
-    marginRight: 15,
-  },
-  metaLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  metaValue: {
-    color: COLORS.white,
-    fontSize: 14,
-  },
-  priorityText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  content: {
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.text,
+  priorityContainer: {
     marginBottom: 10,
   },
-  description: {
-    fontSize: 14,
-    color: COLORS.text,
-    lineHeight: 22,
+  priorityText: {
+    fontSize: 16,
+    fontWeight: '500',
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
-    marginVertical: 20,
+  description: {
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 15,
+    lineHeight: 24,
+  },
+  detailsContainer: {
+    marginTop: 15,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  detailText: {
+    marginLeft: 10,
+    color: colors.text,
+    fontSize: 14,
+  },
+  commentsCard: {
+    margin: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 15,
   },
   noCommentsText: {
     fontStyle: 'italic',
-    color: COLORS.textLight,
+    color: colors.textLight,
   },
   commentItem: {
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     padding: 15,
     borderRadius: 8,
     marginBottom: 10,
@@ -384,7 +348,7 @@ const styles = StyleSheet.create({
   staffCommentItem: {
     backgroundColor: '#EDF7FF',
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: colors.primary,
   },
   commentHeader: {
     flexDirection: 'row',
@@ -394,61 +358,33 @@ const styles = StyleSheet.create({
   commentUser: {
     fontWeight: 'bold',
     fontSize: 14,
-    color: COLORS.text,
+    color: colors.text,
   },
   commentDate: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: colors.textLight,
   },
   commentMessage: {
     fontSize: 14,
-    color: COLORS.text,
+    color: colors.text,
     lineHeight: 20,
   },
-  footer: {
-    backgroundColor: COLORS.white,
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     padding: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
-  inputContainer: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  input: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    maxHeight: 100,
-    color: COLORS.text,
-  },
-  sendButton: {
-    backgroundColor: COLORS.primary,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  disabledButton: {
-    opacity: 0.5,
-  },
-  closeTicketButton: {
-    backgroundColor: '#E8F5E9',
     padding: 10,
     borderRadius: 5,
-    alignItems: 'center',
-    marginTop: 10,
+    minWidth: 120,
+    justifyContent: 'center',
   },
-  closeTicketText: {
-    color: '#388E3C',
+  actionButtonText: {
+    color: colors.white,
+    marginLeft: 5,
     fontWeight: '500',
   },
 });
-
-export default TicketDetailScreen;

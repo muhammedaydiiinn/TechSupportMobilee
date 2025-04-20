@@ -24,44 +24,22 @@ const LoginScreen = ({ navigation }) => {
   const [error, setError] = useState('');
   const { login } = useAuth();
 
-  const validateForm = () => {
-    if (!email.trim()) {
-      setError('E-posta adresi gereklidir.');
-      return false;
-    }
-    
-    if (!password) {
-      setError('Şifre gereklidir.');
-      return false;
-    }
-    
-    return true;
-  };
-
   const handleLogin = async () => {
+    if (!email || !password) {
+      setError('Lütfen tüm alanları doldurun');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
     try {
-      setLoading(true);
-      setError('');
-
-      if (!validateForm()) {
-        setLoading(false);
-        return;
-      }
-
-      const result = await login(email.trim(), password);
-      
-      if (result.success) {
-        navigation.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Dashboard' }],
-          })
-        );
-      } else {
+      const result = await login(email, password);
+      if (!result.success) {
         setError(result.message);
       }
     } catch (error) {
-      setError('Giriş yapılırken bir hata oluştu. Lütfen tekrar deneyin.');
+      setError('Giriş yapılırken bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -131,8 +109,8 @@ const LoginScreen = ({ navigation }) => {
             </View>
           ) : null}
 
-          <TouchableOpacity 
-            style={[styles.button, loading && styles.buttonDisabled]} 
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
             disabled={loading}
           >
@@ -142,13 +120,13 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.buttonText}>Giriş Yap</Text>
             )}
           </TouchableOpacity>
-          
-          {/* Geliştirme ortamında test kullanıcısıyla giriş yapmak için */}
-          <TouchableOpacity 
-            style={[styles.testButton]} 
-            onPress={loginWithTestUser}
-          >
-            <Text style={styles.testButtonText}>Test Kullanıcısı ile Giriş</Text>
+
+        {/* Geliştirme ortamında test kullanıcısıyla giriş yapmak için */}
+        <TouchableOpacity 
+          style={[styles.testButton]} 
+          onPress={loginWithTestUser}
+        >
+          <Text style={styles.testButtonText}>Test Kullanıcısı ile Giriş</Text>
           </TouchableOpacity>
         </View>
 
