@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import TokenService from '../services/TokenService';
-import { authService } from '../services/api';
+import { authService, userService } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
@@ -22,10 +22,20 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           const decoded = jwtDecode(token);
+          console.log('Çözümlenen token:', decoded);
+          
+          // Kullanıcı bilgilerini API'den al
+          const userDetails = await userService.getCurrentUser();
+          console.log('Kullanıcı detayları:', userDetails);
+          
           setUser({
             id: decoded.sub,
-            email: decoded.email,
-            role: decoded.role,
+            email: userDetails.email,
+            role: userDetails.role,
+            department_id: userDetails.department_id,
+            department_name: userDetails.department_name,
+            first_name: userDetails.first_name,
+            last_name: userDetails.last_name
           });
         } catch (decodeError) {
           console.error('Token çözümleme hatası:', decodeError);
@@ -34,7 +44,6 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Oturum kontrolü hatası:', error);
-      // Hata durumunda token'ı temizle
       await TokenService.clearAllTokens();
     } finally {
       setLoading(false);
@@ -50,10 +59,20 @@ export const AuthProvider = ({ children }) => {
       
       if (response.success) {
         const decoded = jwtDecode(response.data.access_token);
+        console.log('Login - Çözümlenen token:', decoded);
+        
+        // Kullanıcı bilgilerini API'den al
+        const userDetails = await userService.getCurrentUser();
+        console.log('Login - Kullanıcı detayları:', userDetails);
+        
         setUser({
           id: decoded.sub,
-          email: decoded.email,
-          role: decoded.role,
+          email: userDetails.email,
+          role: userDetails.role,
+          department_id: userDetails.department_id,
+          department_name: userDetails.department_name,
+          first_name: userDetails.first_name,
+          last_name: userDetails.last_name
         });
         return { success: true };
       } else {
@@ -73,6 +92,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       await authService.logout();
+      await TokenService.clearAllTokens();
       setUser(null);
       return { success: true };
     } catch (error) {

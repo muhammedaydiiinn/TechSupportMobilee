@@ -100,12 +100,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401) {
       console.log('401 hatası - Yetkisiz erişim');
-      try {
-        await TokenService.clearAllTokens();
-        reset('Login');
-      } catch (clearError) {
-        console.error('Token temizleme hatası:', clearError);
-      }
+    
     }
     
     return Promise.reject(error);
@@ -183,15 +178,23 @@ export const ticketService = {
     }
   },
 
-  createTicket: async (ticketData) => {
+  createTicket: async (formData) => {
     try {
-      console.log('Ticket oluşturma isteği:', ticketData);
-      const response = await api.post('/tickets', ticketData);
+      console.log('Ticket oluşturma isteği:', formData);
+      const response = await api.post('/tickets/', formData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      });
       console.log('Ticket başarıyla oluşturuldu:', response.data);
-      return response.data;
+      return { success: true, data: response.data };
     } catch (error) {
       console.error('Ticket oluşturma hatası:', error);
-      throw error;
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ticket oluşturulurken bir hata oluştu'
+      };
     }
   },
 
@@ -245,7 +248,7 @@ export const userService = {
   getCurrentUser: async () => {
     try {
       console.log('Mevcut kullanıcı bilgileri getiriliyor');
-      const response = await api.get('/users/me');
+      const response = await api.get('/auth/me');
       console.log('Mevcut kullanıcı bilgileri başarıyla alındı:', response.data);
       return response.data;
     } catch (error) {
