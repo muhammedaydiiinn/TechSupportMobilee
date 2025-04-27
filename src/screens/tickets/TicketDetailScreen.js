@@ -6,7 +6,6 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
-  TextInput
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ticketService } from '../../services/api';
@@ -25,7 +24,6 @@ export default function TicketDetailScreen() {
   const [ticket, setTicket] = useState(null);
   const [createdBy, setCreatedBy] = useState(null);
   const [assignedTo, setAssignedTo] = useState(null);
-  const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
     fetchTicketDetails();
@@ -36,7 +34,7 @@ export default function TicketDetailScreen() {
       setLoading(true);
       setError(null);
       
-      // Ticket detaylarını al
+      // Destek talebi detaylarını al
       const ticketData = await ticketService.getTicket(ticketId);
       setTicket(ticketData);
 
@@ -52,38 +50,10 @@ export default function TicketDetailScreen() {
         setAssignedTo(assigned);
       }
     } catch (error) {
-      console.error('Ticket detay hatası:', error);
-      setError('Ticket detayları yüklenirken bir hata oluştu');
+      console.error('Destek talebi detay hatası:', error);
+      setError('Destek talebi detayları yüklenirken bir hata oluştu');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSendComment = async () => {
-    if (!newComment.trim()) return;
-    
-    try {
-      // In a real app, you would send this to your API
-      // await ticketService.addComment(ticketId, newComment);
-      
-      // For now, just simulate adding a comment
-      const newCommentObj = {
-        id: Date.now(),
-        user: 'Mustafa Yılmaz',
-        message: newComment,
-        created_at: new Date().toISOString(),
-        is_staff: false
-      };
-      
-      setTicket({
-        ...ticket,
-        comments: [...(ticket.comments || []), newCommentObj]
-      });
-      setNewComment('');
-      
-    } catch (error) {
-      console.log('Error sending comment:', error);
-      alert('Yorum gönderilirken bir hata oluştu.');
     }
   };
 
@@ -100,7 +70,7 @@ export default function TicketDetailScreen() {
       
     } catch (error) {
       console.log('Error closing ticket:', error);
-      alert('Bilet kapatılırken bir hata oluştu.');
+      alert('Destek talebi kapatılırken bir hata oluştu.');
     }
   };
 
@@ -151,7 +121,7 @@ export default function TicketDetailScreen() {
   if (!ticket) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Ticket bulunamadı</Text>
+        <Text style={styles.errorText}>Destek talebi bulunamadı</Text>
       </View>
     );
   }
@@ -205,49 +175,15 @@ export default function TicketDetailScreen() {
         </View>
       </Card>
 
-      {/* Yorumlar bölümü */}
-      <Card style={styles.commentsCard}>
-        <Text style={styles.sectionTitle}>Yorumlar</Text>
-        {(!ticket.comments || ticket.comments.length === 0) ? (
-          <Text style={styles.noCommentsText}>Henüz yorum bulunmamaktadır.</Text>
-        ) : (
-          ticket.comments.map(comment => (
-            <View 
-              key={comment.id} 
-              style={[
-                styles.commentItem,
-                comment.is_staff && styles.staffCommentItem
-              ]}
-            >
-              <View style={styles.commentHeader}>
-                <Text style={styles.commentUser}>{comment.user}</Text>
-                <Text style={styles.commentDate}>
-                  {new Date(comment.created_at).toLocaleString('tr-TR')}
-                </Text>
-              </View>
-              <Text style={styles.commentMessage}>{comment.message}</Text>
-            </View>
-          ))
-        )}
-      </Card>
-
       {/* İşlem butonları */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.navigate('AddComment', { ticketId })}
-        >
-          <Ionicons name="chatbubble-outline" size={20} color={colors.white} />
-          <Text style={styles.actionButtonText}>Yorum Ekle</Text>
-        </TouchableOpacity>
-
         {ticket.status !== 'closed' && (
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: colors.error }]}
             onPress={handleCloseTicket}
           >
             <Ionicons name="close-circle-outline" size={20} color={colors.white} />
-            <Text style={styles.actionButtonText}>Ticket Kapat</Text>
+            <Text style={styles.actionButtonText}>Destek Talebini Kapat</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -325,49 +261,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: colors.text,
     fontSize: 14,
-  },
-  commentsCard: {
-    margin: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 15,
-  },
-  noCommentsText: {
-    fontStyle: 'italic',
-    color: colors.textLight,
-  },
-  commentItem: {
-    backgroundColor: colors.white,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  staffCommentItem: {
-    backgroundColor: '#EDF7FF',
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  commentUser: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: colors.text,
-  },
-  commentDate: {
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  commentMessage: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
   },
   actionsContainer: {
     flexDirection: 'row',

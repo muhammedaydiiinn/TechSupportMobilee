@@ -37,8 +37,8 @@ const MyTicketsScreen = () => {
       const data = await ticketService.getTickets();
       setTickets(data);
     } catch (error) {
-      console.error('Ticket listesi alınamadı:', error);
-      setError('Ticket listesi alınamadı. Lütfen tekrar deneyin.');
+      console.error('Destek talebi listesi alınamadı:', error);
+      setError('Destek talepleri alınamadı. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -140,7 +140,7 @@ const MyTicketsScreen = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Henüz ticket bulunmuyor</Text>
+            <Text style={styles.emptyText}>Henüz destek talebi bulunmuyor</Text>
           </View>
         }
       />

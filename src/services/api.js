@@ -155,54 +155,54 @@ export const authService = {
 export const ticketService = {
   getTickets: async (skip = 0, limit = 100) => {
     try {
-      console.log('Ticket Listesi İsteği Başlatılıyor:', { skip, limit });
+      console.log('Destek Talebi Listesi İsteği Başlatılıyor:', { skip, limit });
       const response = await api.get('/tickets/', {
         params: { skip, limit }
       });
       return response.data;
     } catch (error) {
-      console.error('Ticket Listesi Hatası:', error);
+      console.error('Destek Talebi Listesi Hatası:', error);
       throw error;
     }
   },
 
   getTicket: async (ticketId) => {
     try {
-      console.log('Ticket detayları getiriliyor:', ticketId);
+      console.log('Destek talebi detayları getiriliyor:', ticketId);
       const response = await api.get(`/tickets/${ticketId}`);
-      console.log('Ticket detayları başarıyla alındı:', response.data);
+      console.log('Destek talebi detayları başarıyla alındı:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Ticket detayları alınırken hata:', error);
+      console.error('Destek talebi detayları alınırken hata:', error);
       throw error;
     }
   },
 
   createTicket: async (ticketData) => {
     try {
-      console.log('Ticket oluşturma isteği:', ticketData);
+      console.log('Destek talebi oluşturma isteği:', ticketData);
       const response = await api.post('/tickets/', ticketData);
-      console.log('Ticket oluşturma başarılı:', response.data);
+      console.log('Destek talebi oluşturma başarılı:', response.data);
       return {
         success: true,
         data: response.data,
       };
     } catch (error) {
-      console.error('Ticket oluşturma hatası:', error.response?.data || error);
+      console.error('Destek talebi oluşturma hatası:', error.response?.data || error);
       return {
         success: false,
-        message: error.response?.data?.detail || 'Ticket oluşturulurken bir hata oluştu',
+        message: error.response?.data?.detail || 'Destek talebi oluşturulurken bir hata oluştu',
       };
     }
   },
 
   updateTicket: async (ticketId, ticketData) => {
     try {
-      console.log('Ticket Güncelleme İsteği Başlatılıyor:', { ticketId, ticketData });
+      console.log('Destek Talebi Güncelleme İsteği Başlatılıyor:', { ticketId, ticketData });
       const response = await api.put(`/tickets/${ticketId}`, ticketData);
       return response.data;
     } catch (error) {
-      console.error('Ticket Güncelleme Hatası:', error);
+      console.error('Destek Talebi Güncelleme Hatası:', error);
       throw error;
     }
   },
@@ -220,11 +220,11 @@ export const ticketService = {
 
   closeTicket: async (ticketId) => {
     try {
-      console.log('Ticket Kapatma İsteği Başlatılıyor:', { ticketId });
+      console.log('Destek Talebi Kapatma İsteği Başlatılıyor:', { ticketId });
       const response = await api.put(`/tickets/${ticketId}/close`);
       return response.data;
     } catch (error) {
-      console.error('Ticket Kapatma Hatası:', error);
+      console.error('Destek Talebi Kapatma Hatası:', error);
       throw error;
     }
   },

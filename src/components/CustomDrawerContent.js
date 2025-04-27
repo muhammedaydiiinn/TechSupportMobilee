@@ -9,20 +9,21 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../constants/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CustomDrawerContent = ({ navigation, onLogout }) => {
   const { user } = useAuth();
 
   const menuItems = [
     { name: 'Dashboard', icon: 'home', label: 'Ana Sayfa' },
-    { name: 'CreateTicket', icon: 'add-circle', label: 'Yeni Bilet Oluştur' },
-    { name: 'MyTickets', icon: 'list', label: 'Biletlerim' },
+    { name: 'CreateTicket', icon: 'add-circle', label: 'Yeni Destek Talebi Oluştur' },
+    { name: 'MyTickets', icon: 'list', label: 'Destek Taleplerim' },
     { name: 'Profile', icon: 'person', label: 'Profil' },
     { name: 'Settings', icon: 'settings', label: 'Ayarlar' },
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <View style={styles.avatarContainer}>
@@ -67,7 +68,7 @@ const CustomDrawerContent = ({ navigation, onLogout }) => {
           </View>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -75,7 +76,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
-    paddingTop: 0,
   },
   header: {
     padding: 20,

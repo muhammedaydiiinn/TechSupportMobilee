@@ -15,6 +15,7 @@ import TokenService from '../services/TokenService';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '../components/Card';
 import { colors } from '../theme/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -59,114 +60,120 @@ const DashboardScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
+      <SafeAreaView style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.email}</Text>
-      </View>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.header}>
+          <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.email}</Text>
+        </View>
 
-      <View style={styles.statsContainer}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.total}</Text>
-          <Text style={styles.statLabel}>Toplam Ticket</Text>
-        </Card>
+        <View style={styles.statsContainer}>
+          <Card style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.total}</Text>
+            <Text style={styles.statLabel}>Toplam Destek Talebi</Text>
+          </Card>
 
-        <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.open}</Text>
-          <Text style={styles.statLabel}>Açık</Text>
-        </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.open}</Text>
+            <Text style={styles.statLabel}>Açık</Text>
+          </Card>
 
-        <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.inProgress}</Text>
-          <Text style={styles.statLabel}>İşlemde</Text>
-        </Card>
+          <Card style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.inProgress}</Text>
+            <Text style={styles.statLabel}>İşlemde</Text>
+          </Card>
 
-        <Card style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.closed}</Text>
-          <Text style={styles.statLabel}>Kapalı</Text>
-        </Card>
-      </View>
+          <Card style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.closed}</Text>
+            <Text style={styles.statLabel}>Kapalı</Text>
+          </Card>
+        </View>
 
-      <View style={styles.cardsContainer}>
-        <TouchableOpacity 
-          style={styles.card}
-          onPress={() => navigation.navigate('CreateTicket')}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
-            <Ionicons name="add-circle" size={30} color="#2196F3" />
-          </View>
-          <Text style={styles.cardTitle}>Yeni Bilet</Text>
-          <Text style={styles.cardSubtitle}>Destek talebi oluştur</Text>
-        </TouchableOpacity>
+        <View style={styles.cardsContainer}>
+          <TouchableOpacity 
+            style={styles.card}
+            onPress={() => navigation.navigate('CreateTicket')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
+              <Ionicons name="add-circle" size={30} color="#2196F3" />
+            </View>
+            <Text style={styles.cardTitle}>Yeni Destek Talebi</Text>
+            <Text style={styles.cardSubtitle}>Destek talebi oluştur</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.card}
-          onPress={() => navigation.navigate('TicketsStack')}
-        >
-          <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
-            <Ionicons name="list" size={30} color="#4CAF50" />
-          </View>
-          <Text style={styles.cardTitle}>Biletlerim</Text>
-          <Text style={styles.cardSubtitle}>Tüm destek taleplerim</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Nasıl Destek Alırım?</Text>
-        <Text style={styles.infoText}>
-          1. "Yeni Bilet" seçeneğine tıklayın{'\n'}
-          2. Destek talebinizin detaylarını girin{'\n'}
-          3. Gönder butonuna tıklayın{'\n'}
-          4. Destek ekibimiz en kısa sürede size dönüş yapacaktır
-        </Text>
-      </View>
-
-      {/* Son Biletler */}
-      <View style={styles.recentTicketsContainer}>
-        <View style={styles.sectionTitleContainer}>
-          <Text style={styles.sectionTitle}>Son Biletlerim</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('TicketsStack')}>
-            <Text style={styles.viewAllText}>Tümünü Gör</Text>
+          <TouchableOpacity 
+            style={styles.card}
+            onPress={() => navigation.navigate('MyTickets')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
+              <Ionicons name="list" size={30} color="#4CAF50" />
+            </View>
+            <Text style={styles.cardTitle}>Destek Taleplerim</Text>
+            <Text style={styles.cardSubtitle}>Tüm destek taleplerim</Text>
           </TouchableOpacity>
         </View>
-        
-        {loading ? (
-          <Text style={styles.loadingText}>Yükleniyor...</Text>
-        ) : tickets.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Henüz bir destek bileti oluşturmadınız.</Text>
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => navigation.navigate('CreateTicket')}
-            >
-              <Text style={styles.createButtonText}>Bilet Oluştur</Text>
+
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>Nasıl Destek Alırım?</Text>
+          <Text style={styles.infoText}>
+            1. "Yeni Destek Talebi" seçeneğine tıklayın{'\n'}
+            2. Destek talebinizin detaylarını girin{'\n'}
+            3. Gönder butonuna tıklayın{'\n'}
+            4. Destek ekibimiz en kısa sürede size dönüş yapacaktır
+          </Text>
+        </View>
+
+        {/* Son Destek Talepler */}
+        <View style={styles.recentTicketsContainer}>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Son Destek Taleplerim</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('MyTickets')}>
+              <Text style={styles.viewAllText}>Tümünü Gör</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          tickets.slice(0, 5).map((ticket) => (
-            <Card key={ticket.id} style={styles.ticketCard}>
-              <Text style={styles.ticketTitle}>{ticket.title}</Text>
-              <Text style={styles.ticketStatus}>Durum: {ticket.status}</Text>
-              <Text style={styles.ticketPriority}>Öncelik: {ticket.priority}</Text>
-            </Card>
-          ))
-        )}
-      </View>
-    </ScrollView>
+          
+          {loading ? (
+            <Text style={styles.loadingText}>Yükleniyor...</Text>
+          ) : tickets.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Henüz bir destek talebi oluşturmadınız.</Text>
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={() => navigation.navigate('CreateTicket')}
+              >
+                <Text style={styles.createButtonText}>Destek Talebi Oluştur</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            tickets.slice(0, 5).map((ticket) => (
+              <TouchableOpacity
+                key={ticket.id}
+                style={styles.ticketCard}
+                onPress={() => navigation.navigate('TicketDetail', { ticketId: ticket.id })}
+              >
+                <Card style={styles.ticketCardContent}>
+                  <Text style={styles.ticketTitle}>{ticket.title}</Text>
+                  <Text style={styles.ticketStatus}>Durum: {ticket.status}</Text>
+                  <Text style={styles.ticketPriority}>Öncelik: {ticket.priority}</Text>
+                </Card>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      </ScrollView>
   );
 };
 
@@ -174,6 +181,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -328,6 +338,8 @@ const styles = StyleSheet.create({
   },
   ticketCard: {
     marginBottom: 10,
+  },
+  ticketCardContent: {
     padding: 15,
   },
   ticketTitle: {

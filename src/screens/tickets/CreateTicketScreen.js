@@ -18,7 +18,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import TokenService from '../../services/TokenService';
 
-// Ticket kategorileri
+// Destek talebi kategorileri
 const TicketCategory = {
   SOFTWARE: 'software',
   HARDWARE: 'hardware',
@@ -26,7 +26,7 @@ const TicketCategory = {
   OTHER: 'other'
 };
 
-// Ticket öncelikleri
+// Destek talebi öncelikleri
 const TicketPriority = {
   LOW: 'low',
   MEDIUM: 'medium',
@@ -166,15 +166,15 @@ export default function CreateTicketScreen() {
         }
       }
 
-      Alert.alert('Başarılı', 'Ticket başarıyla oluşturuldu', [
+      Alert.alert('Başarılı', 'Destek talebi başarıyla oluşturuldu', [
         {
           text: 'Tamam',
           onPress: () => navigation.goBack(),
         },
       ]);
     } catch (error) {
-      console.error('Ticket oluşturma hatası:', error);
-      Alert.alert('Hata', 'Ticket oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+      console.error('Destek talebi oluşturma hatası:', error);
+      Alert.alert('Hata', 'Destek talebi oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
     }
   };
 
@@ -187,7 +187,7 @@ export default function CreateTicketScreen() {
             style={styles.input}
             value={formData.title}
             onChangeText={(text) => setFormData({ ...formData, title: text })}
-            placeholder="Ticket başlığını girin"
+            placeholder="Destek talebi başlığını girin"
             placeholderTextColor={colors.textLight}
           />
         </View>
@@ -198,7 +198,7 @@ export default function CreateTicketScreen() {
             style={[styles.input, styles.textArea]}
             value={formData.description}
             onChangeText={(text) => setFormData({ ...formData, description: text })}
-            placeholder="Ticket açıklamasını girin"
+            placeholder="Destek talebi açıklamasını girin"
             placeholderTextColor={colors.textLight}
             multiline
             numberOfLines={4}
@@ -293,7 +293,7 @@ export default function CreateTicketScreen() {
           {loading ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.submitButtonText}>Ticket Oluştur</Text>
+            <Text style={styles.submitButtonText}>Destek Talebi Oluştur</Text>
           )}
         </TouchableOpacity>
       </View>

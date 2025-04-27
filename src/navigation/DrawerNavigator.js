@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import TokenService from '../services/TokenService';
 import { COLORS } from '../constants/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -34,94 +35,96 @@ const DrawerNavigator = () => {
   };
 
   return (
-    <Drawer.Navigator
-      drawerContent={(props) => (
-        <CustomDrawerContent {...props} onLogout={handleLogout} />
-      )}
-      screenOptions={{
-        headerShown: true,
-        headerStyle: {
-          backgroundColor: COLORS.primary,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        headerTintColor: COLORS.white,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-          fontSize: 18,
-        },
-        drawerStyle: {
-          backgroundColor: COLORS.white,
-          width: '80%',
-          marginTop: 0,
-        },
-        drawerActiveTintColor: COLORS.primary,
-        drawerInactiveTintColor: COLORS.text,
-        drawerLabelStyle: {
-          marginLeft: -15,
-          fontSize: 16,
-        },
-      }}
-    >
-      <Drawer.Screen 
-        name="Dashboard" 
-        component={DashboardScreen}
-        options={{
-          title: 'Ana Sayfa',
-          drawerIcon: ({ color }) => (
-            <Ionicons name="home" size={22} color={color} />
-          ),
+    <SafeAreaProvider>
+      <Drawer.Navigator
+        drawerContent={(props) => (
+          <CustomDrawerContent {...props} onLogout={handleLogout} />
+        )}
+        screenOptions={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: COLORS.primary,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          headerTintColor: COLORS.white,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+          drawerStyle: {
+            backgroundColor: COLORS.white,
+            width: '80%',
+            marginTop: 0,
+          },
+          drawerActiveTintColor: COLORS.primary,
+          drawerInactiveTintColor: COLORS.text,
+          drawerLabelStyle: {
+            marginLeft: -15,
+            fontSize: 16,
+          },
         }}
-      />
-      <Drawer.Screen 
-        name="CreateTicket" 
-        component={CreateTicketScreen}
-        options={{
-          title: 'Yeni Bilet Oluştur',
-          drawerIcon: ({ color }) => (
-            <Ionicons name="add-circle" size={22} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen 
-        name="MyTickets" 
-        component={MyTicketsScreen}
-        options={{
-          title: 'Biletlerim',
-          drawerIcon: ({ color }) => (
-            <Ionicons name="list" size={22} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen 
-        name="TicketDetail" 
-        component={TicketDetailScreen}
-        options={{
-          title: 'Bilet Detayı',
-          drawerItemStyle: { display: 'none' },
-        }}
-      />
-      <Drawer.Screen 
-        name="Profile" 
-        component={ProfileScreen}
-        options={{
-          title: 'Profil',
-          drawerIcon: ({ color }) => (
-            <Ionicons name="person" size={22} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen 
-        name="Settings" 
-        component={SettingsScreen}
-        options={{
-          title: 'Ayarlar',
-          drawerIcon: ({ color }) => (
-            <Ionicons name="settings" size={22} color={color} />
-          ),
-        }}
-      />
-    </Drawer.Navigator>
+      >
+        <Drawer.Screen 
+          name="Dashboard" 
+          component={DashboardScreen}
+          options={{
+            title: 'Ana Sayfa',
+            drawerIcon: ({ color }) => (
+              <Ionicons name="home" size={22} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen 
+          name="CreateTicket" 
+          component={CreateTicketScreen}
+          options={{
+            title: 'Yeni Destek Talebi Oluştur',
+            drawerIcon: ({ color }) => (
+              <Ionicons name="add-circle" size={22} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen 
+          name="MyTickets" 
+          component={MyTicketsScreen}
+          options={{
+            title: 'Destek Taleplerim',
+            drawerIcon: ({ color }) => (
+              <Ionicons name="list" size={22} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen 
+          name="TicketDetail" 
+          component={TicketDetailScreen}
+          options={{
+            title: 'Destek Talebi Detayı',
+            drawerItemStyle: { display: 'none' },
+          }}
+        />
+        <Drawer.Screen 
+          name="Profile" 
+          component={ProfileScreen}
+          options={{
+            title: 'Profil',
+            drawerIcon: ({ color }) => (
+              <Ionicons name="person" size={22} color={color} />
+            ),
+          }}
+        />
+        <Drawer.Screen 
+          name="Settings" 
+          component={SettingsScreen}
+          options={{
+            title: 'Ayarlar',
+            drawerIcon: ({ color }) => (
+              <Ionicons name="settings" size={22} color={color} />
+            ),
+          }}
+        />
+      </Drawer.Navigator>
+    </SafeAreaProvider>
   );
 };
 
