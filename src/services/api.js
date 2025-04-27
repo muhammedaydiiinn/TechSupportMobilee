@@ -143,11 +143,27 @@ export const authService = {
 
   logout: async () => {
     try {
+      // Sadece yerel tokenları temizle
       await TokenService.clearAllTokens();
       return { success: true };
     } catch (error) {
       console.error('Logout Hatası:', error);
       return { success: false, message: 'Çıkış yapılırken bir hata oluştu' };
+    }
+  },
+
+  forgotPassword: async (email) => {
+    try {
+      console.log('Şifre sıfırlama isteği gönderiliyor:', { email });
+      
+      const response = await api.post('/auth/forgot-password', { email });
+      
+      console.log('Şifre sıfırlama isteği başarılı:', response.data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Şifre sıfırlama hatası:', error);
+      const errorMessage = getErrorMessage(error);
+      return { success: false, message: errorMessage };
     }
   },
 };

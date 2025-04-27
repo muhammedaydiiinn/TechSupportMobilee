@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import TokenService from '../services/TokenService';
 import { authService, userService } from '../services/api';
 import { jwtDecode } from 'jwt-decode';
+import { reset } from '../navigation/RootNavigation';
 
 const AuthContext = createContext();
 
@@ -91,10 +92,19 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
-      await authService.logout();
-      await TokenService.clearAllTokens();
-      setUser(null);
-      return { success: true };
+      const response = await authService.logout();
+      
+      if (response.success) {
+        await TokenService.clearAllTokens();
+        setUser(null);
+        setError(null);
+        // Navigasyonu sıfırla ve Login ekranına yönlendir
+        reset('Login');
+        return { success: true };
+      } else {
+        setError(response.message);
+        return { success: false, message: response.message };
+      }
     } catch (error) {
       console.error('Çıkış hatası:', error);
       setError('Çıkış yapılırken bir hata oluştu');

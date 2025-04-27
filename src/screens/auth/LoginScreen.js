@@ -45,15 +45,7 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  // Test amaçlı kullanıcı girişi için
-  const loginWithTestUser = async () => {
-    setEmail("test@example.com");
-    setPassword("password123");
-    
-    setTimeout(() => {
-      handleLogin();
-    }, 100);
-  };
+
 
   return (
     <KeyboardAvoidingView 
@@ -122,12 +114,7 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
 
         {/* Geliştirme ortamında test kullanıcısıyla giriş yapmak için */}
-        <TouchableOpacity 
-          style={[styles.testButton]} 
-          onPress={loginWithTestUser}
-        >
-          <Text style={styles.testButtonText}>Test Kullanıcısı ile Giriş</Text>
-          </TouchableOpacity>
+    
         </View>
 
         <TouchableOpacity 

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
@@ -21,16 +22,42 @@ const ForgotPasswordScreen = ({ navigation }) => {
     try {
       setLoading(true);
       setError('');
+      setSuccess(false);
 
       if (!email) {
         setError('Lütfen e-posta adresinizi girin.');
+        setLoading(false);
         return;
       }
 
-      await authService.forgotPassword(email);
-      setSuccess(true);
+      // E-posta formatını kontrol et
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Lütfen geçerli bir e-posta adresi girin.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await authService.forgotPassword(email);
+      
+      if (response.success) {
+        setSuccess(true);
+        Alert.alert(
+          'Başarılı',
+          'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.',
+          [
+            {
+              text: 'Tamam',
+              onPress: () => navigation.navigate('Login'),
+            },
+          ]
+        );
+      } else {
+        setError(response.message || 'Şifre sıfırlama işlemi başarısız oldu.');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Şifre sıfırlama işlemi başarısız oldu.');
+      console.error('Şifre sıfırlama hatası:', err);
+      setError('Şifre sıfırlama işlemi sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.');
     } finally {
       setLoading(false);
     }
