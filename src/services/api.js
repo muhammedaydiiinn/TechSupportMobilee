@@ -110,6 +110,7 @@ api.interceptors.response.use(
 export const authService = {
   login: async (email, password) => {
     try {
+      // API'nin beklediği formata uygun olarak form-urlencoded verisi gönderelim
       const formData = new URLSearchParams();
       formData.append('grant_type', '');
       formData.append('username', email);
@@ -118,6 +119,15 @@ export const authService = {
       formData.append('client_id', '');
       formData.append('client_secret', '');
 
+      console.log('Login isteği gönderiliyor:', {
+        email: email,
+        password: '********',
+        grant_type: '',
+        scope: '',
+        client_id: '',
+        client_secret: ''
+      });
+
       const response = await axios.post(`${API_URL}/auth/login`, formData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -125,6 +135,8 @@ export const authService = {
         },
         timeout: 15000,
       });
+      
+      console.log('Login yanıtı:', response.data);
       
       if (response.data && response.data.access_token) {
         await TokenService.setToken(response.data.access_token);
@@ -139,7 +151,11 @@ export const authService = {
       if (error.code === 'ECONNABORTED') {
         errorMessage = 'Bağlantı zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin.';
       } else if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => err.msg).join(', ');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
       } else if (Array.isArray(error.response?.data)) {
         errorMessage = error.response.data.map(err => err.msg).join(', ');
       }

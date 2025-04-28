@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { COLORS } from '../constants/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../contexts/AuthContext';
 
 const SettingsScreen = ({ navigation }) => {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [emailUpdates, setEmailUpdates] = useState(true);
+  const { logout } = useAuth();
 
   const toggleSwitch = (setting, value) => {
     if (setting === 'notifications') {
@@ -57,13 +58,12 @@ const SettingsScreen = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.removeItem('authToken');
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Auth' }],
-              });
+              const result = await logout();
+              if (!result.success) {
+                Alert.alert('Hata', result.message || 'Çıkış yapılırken bir hata oluştu.');
+              }
             } catch (error) {
-              console.log('Logout error:', error);
+              console.error('Logout error:', error);
               Alert.alert('Hata', 'Çıkış yapılırken bir hata oluştu.');
             }
           } 
