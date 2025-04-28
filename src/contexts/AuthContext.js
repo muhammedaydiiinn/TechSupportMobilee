@@ -60,11 +60,9 @@ export const AuthProvider = ({ children }) => {
       
       if (response.success) {
         const decoded = jwtDecode(response.data.access_token);
-        console.log('Login - Çözümlenen token:', decoded);
         
         // Kullanıcı bilgilerini API'den al
         const userDetails = await userService.getCurrentUser();
-        console.log('Login - Kullanıcı detayları:', userDetails);
         
         setUser({
           id: decoded.sub,
@@ -77,13 +75,15 @@ export const AuthProvider = ({ children }) => {
         });
         return { success: true };
       } else {
-        setError(response.message);
-        return { success: false, message: response.message };
+        const errorMessage = response.error?.detail || response.message;
+        setError(errorMessage);
+        return { success: false, message: errorMessage };
       }
     } catch (error) {
       console.error('Giriş hatası:', error);
-      setError('Giriş yapılırken bir hata oluştu');
-      return { success: false, message: 'Giriş yapılırken bir hata oluştu' };
+      const errorMessage = error.response?.data?.detail || 'Giriş yapılırken bir hata oluştu';
+      setError(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }

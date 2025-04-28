@@ -35,11 +35,14 @@ const LoginScreen = ({ navigation }) => {
 
     try {
       const result = await login(email, password);
+      console.log('Login result:', result);
+      
       if (!result.success) {
-        setError(result.message);
+        setError(result.message || 'Giriş yapılırken bir hata oluştu');
       }
     } catch (error) {
-      setError('Giriş yapılırken bir hata oluştu');
+      console.error('Login error:', error);
+      setError(error.message || 'Giriş yapılırken bir hata oluştu');
     } finally {
       setLoading(false);
     }

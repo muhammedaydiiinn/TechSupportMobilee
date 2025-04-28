@@ -7,7 +7,7 @@ console.log('Current API_URL:', API_URL);
 
 const api = axios.create({
   baseURL: `${API_URL}`,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -110,29 +110,81 @@ api.interceptors.response.use(
 export const authService = {
   login: async (email, password) => {
     try {
-      console.log('Login İsteği Başlatılıyor:', { email });
       const formData = new URLSearchParams();
+      formData.append('grant_type', '');
       formData.append('username', email);
       formData.append('password', password);
+      formData.append('scope', '');
+      formData.append('client_id', '');
+      formData.append('client_secret', '');
 
       const response = await axios.post(`${API_URL}/auth/login`, formData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Accept: 'application/json',
         },
+        timeout: 15000,
       });
       
-      console.log('Login Başarılı:', response.data);
-      const { access_token } = response.data;
-      
-      if (!access_token) {
-        throw new Error('Access token eksik');
+      if (response.data && response.data.access_token) {
+        await TokenService.setToken(response.data.access_token);
+        return { success: true, data: response.data };
+      } else {
+        throw new Error('Access token alınamadı');
       }
+    } catch (error) {
+      console.error('Login error:', error.response?.data || error);
+      let errorMessage = 'Giriş yapılırken bir hata oluştu';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Bağlantı zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (Array.isArray(error.response?.data)) {
+        errorMessage = error.response.data.map(err => err.msg).join(', ');
+      }
+      
+      return {
+        success: false,
+        message: errorMessage,
+        error: error.response?.data
+      };
+    }
+  },
 
-      await TokenService.setToken(access_token);
+  register: async (userData) => {
+    try {
+      const requestData = {
+        email: userData.email,
+        password: userData.password,
+        password_confirm: userData.password_confirm,
+        first_name: userData.name,
+        last_name: userData.surname
+      };
+
+      const response = await axios.post(`${API_URL}/auth/register`, requestData, {
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        timeout: 15000,
+      });
+      
       return { success: true, data: response.data };
     } catch (error) {
-      const errorMessage = getErrorMessage(error);
+      console.error('Register error:', error.response?.data || error);
+      let errorMessage = 'Kayıt olurken bir hata oluştu';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Bağlantı zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edin.';
+      } else if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => err.msg).join('\n');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
       return {
         success: false,
         message: errorMessage,

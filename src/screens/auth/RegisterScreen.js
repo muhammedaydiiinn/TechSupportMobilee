@@ -80,27 +80,26 @@ const RegisterScreen = ({ navigation }) => {
         return;
       }
 
-      try {
-        // API isteği için verileri hazırla
-        const userData = {
-          email: email.trim(),
-          password,
-          password_confirm: confirmPassword,
-          name: firstName.trim(),
-          surname: lastName.trim(),
-        };
+      // API isteği için verileri hazırla
+      const userData = {
+        email: email.trim(),
+        password,
+        password_confirm: confirmPassword,
+        name: firstName.trim(),
+        surname: lastName.trim(),
+      };
 
-        console.log('Kayıt isteği gönderiliyor:', {
-          ...userData,
-          password: '********',
-          password_confirm: '********'
-        });
-        
-        // Register API çağrısı
-        const response = await authService.register(userData);
-        
-        console.log('Kayıt başarılı:', response);
-        
+      console.log('Kayıt isteği gönderiliyor:', {
+        ...userData,
+        password: '********',
+        password_confirm: '********'
+      });
+      
+      // Register API çağrısı
+      const response = await authService.register(userData);
+      console.log('Kayıt yanıtı:', response);
+      
+      if (response.success) {
         // Başarılı kayıt
         setSuccess(true);
         
@@ -116,28 +115,13 @@ const RegisterScreen = ({ navigation }) => {
           setSuccess(false);
           navigation.navigate('Login');
         }, 3000);
-        
-      } catch (apiError) {
-        console.log('API Error in Register:', apiError);
-        
-        // API hata mesajını ayıkla
-        if (apiError.api) {
-          // API hata objesinden mesajı çıkartalım
-          const errorMessage = apiError.api.message || 
-                              apiError.api.data?.detail || 
-                              'Kayıt işlemi sırasında bir hata oluştu.';
-          setError(errorMessage);
-        } else if (apiError.response?.data?.detail) {
-          // Direkt response içindeki detail mesajını göster
-          setError(apiError.response.data.detail);
-        } else {
-          // Genel hata mesajı
-          setError('Kayıt işlemi yapılamadı. Lütfen tekrar deneyin.');
-        }
+      } else {
+        // API'den gelen hata mesajını göster
+        setError(response.message);
       }
-    } catch (err) {
-      console.log('Global Error:', err);
-      setError('Beklenmeyen bir hata oluştu.');
+    } catch (error) {
+      console.error('Kayıt hatası:', error);
+      setError(error.message || 'Kayıt işlemi sırasında bir hata oluştu');
     } finally {
       setLoading(false);
     }
@@ -217,7 +201,9 @@ const RegisterScreen = ({ navigation }) => {
             {error ? (
               <View style={styles.errorContainer}>
                 <Ionicons name="alert-circle" size={20} color="red" />
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>
+                  {typeof error === 'string' ? error : 'Kayıt işlemi sırasında bir hata oluştu'}
+                </Text>
               </View>
             ) : null}
 
