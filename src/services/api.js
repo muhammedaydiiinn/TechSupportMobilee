@@ -335,6 +335,27 @@ export const ticketService = {
       };
     }
   },
+
+  assignTicket: async (ticketId, assignedTo) => {
+    try {
+      console.log('Destek talebi atama isteği:', { ticketId, assignedTo });
+      const response = await api.put(`/tickets/admin/tickets/${ticketId}/assign`, {
+        ticket_id: ticketId,
+        user_id: assignedTo
+      });
+      console.log('Destek talebi atama başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Destek talebi atama hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Destek talebi atanırken bir hata oluştu'
+      };
+    }
+  },
 };
 
 export const userService = {
@@ -360,7 +381,25 @@ export const userService = {
       console.error('Mevcut kullanıcı bilgileri alınırken hata:', error);
       throw error;
     }
-  }
+  },
+
+  getUsers: async () => {
+    try {
+      console.log('Kullanıcı listesi getiriliyor');
+      const response = await api.get('/auth/admin/users');
+      console.log('Kullanıcı listesi başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı listesi alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı listesi alınırken bir hata oluştu'
+      };
+    }
+  },
 };
 
 export { api };

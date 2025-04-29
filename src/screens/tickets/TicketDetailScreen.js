@@ -6,6 +6,9 @@ import {
   ScrollView, 
   TouchableOpacity, 
   ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ticketService } from '../../services/api';
@@ -13,21 +16,37 @@ import { userService } from '../../services/api';
 import { Card } from '../../components/Card';
 import { colors } from '../../theme/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function TicketDetailScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const { ticketId } = route.params;
+  const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [createdBy, setCreatedBy] = useState(null);
   const [assignedTo, setAssignedTo] = useState(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignNote, setAssignNote] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
     fetchTicketDetails();
+    fetchUsers();
   }, [ticketId]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await userService.getUsers();
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Kullanıcı listesi alınamadı:', error);
+    }
+  };
 
   const fetchTicketDetails = async () => {
     try {
@@ -57,20 +76,44 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const handleAssignTicket = async () => {
+    if (!selectedUser) {
+      Alert.alert('Hata', 'Lütfen bir kullanıcı seçin');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await ticketService.assignTicket(ticketId, selectedUser.id);
+      
+      if (result.success) {
+        Alert.alert('Başarılı', 'Destek talebi başarıyla atandı');
+        setShowAssignModal(false);
+        fetchTicketDetails(); // Detayları yenile
+      } else {
+        Alert.alert('Hata', result.message);
+      }
+    } catch (error) {
+      console.error('Atama hatası:', error);
+      Alert.alert('Hata', 'Atama işlemi sırasında bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCloseTicket = async () => {
     try {
-      // In a real app, you would call your API
-      // await ticketService.closeTicket(ticketId);
-      
-      // For now, just update the local state
-      setTicket({
-        ...ticket,
-        status: 'closed'
-      });
-      
+      const result = await ticketService.closeTicket(ticketId);
+      if (result.success) {
+        setTicket({
+          ...ticket,
+          status: 'closed'
+        });
+        Alert.alert('Başarılı', 'Destek talebi kapatıldı');
+      }
     } catch (error) {
-      console.log('Error closing ticket:', error);
-      alert('Destek talebi kapatılırken bir hata oluştu.');
+      console.error('Kapatma hatası:', error);
+      Alert.alert('Hata', 'Destek talebi kapatılırken bir hata oluştu');
     }
   };
 
@@ -177,16 +220,81 @@ export default function TicketDetailScreen() {
 
       {/* İşlem butonları */}
       <View style={styles.actionsContainer}>
-        {ticket.status !== 'closed' && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.error }]}
-            onPress={handleCloseTicket}
-          >
-            <Ionicons name="close-circle-outline" size={20} color={colors.white} />
-            <Text style={styles.actionButtonText}>Destek Talebini Kapat</Text>
-          </TouchableOpacity>
+        {user?.role === 'admin' && ticket?.status !== 'closed' && (
+          <>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowAssignModal(true)}
+            >
+              <Ionicons name="person-add-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>Atama Yap</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.error }]}
+              onPress={handleCloseTicket}
+            >
+              <Ionicons name="close-circle-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>Kapat</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
+
+      {/* Atama Modal */}
+      <Modal
+        visible={showAssignModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAssignModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Destek Talebi Atama</Text>
+            
+            <View style={styles.userList}>
+              {users.map((user) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={[
+                    styles.userItem,
+                    selectedUser?.id === user.id && styles.selectedUserItem
+                  ]}
+                  onPress={() => setSelectedUser(user)}
+                >
+                  <Text style={styles.userName}>
+                    {user.first_name} {user.last_name}
+                  </Text>
+                  <Text style={styles.userEmail}>{user.email}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+          
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowAssignModal(false)}
+              >
+                <Text style={styles.modalButtonText}>İptal</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.assignButton]}
+                onPress={handleAssignTicket}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.modalButtonText}>Ata</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -278,6 +386,77 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: colors.white,
     marginLeft: 5,
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: colors.text,
+  },
+  userList: {
+    maxHeight: 200,
+    marginBottom: 15,
+  },
+  userItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedUserItem: {
+    backgroundColor: colors.primary + '20',
+  },
+  userName: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  userEmail: {
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 15,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  modalButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: colors.textLight,
+  },
+  assignButton: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonText: {
+    color: colors.white,
     fontWeight: '500',
   },
 });
