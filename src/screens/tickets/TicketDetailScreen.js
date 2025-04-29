@@ -103,17 +103,39 @@ export default function TicketDetailScreen() {
 
   const handleCloseTicket = async () => {
     try {
-      const result = await ticketService.closeTicket(ticketId);
+      setLoading(true);
+      const result = await ticketService.updateTicketStatus(ticketId, 'closed');
+      
       if (result.success) {
-        setTicket({
-          ...ticket,
-          status: 'closed'
-        });
         Alert.alert('Başarılı', 'Destek talebi kapatıldı');
+        fetchTicketDetails(); // Detayları yenile
+      } else {
+        Alert.alert('Hata', result.message);
       }
     } catch (error) {
       console.error('Kapatma hatası:', error);
       Alert.alert('Hata', 'Destek talebi kapatılırken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      setLoading(true);
+      const result = await ticketService.updateTicketStatus(ticketId, newStatus);
+      
+      if (result.success) {
+        Alert.alert('Başarılı', 'Destek talebi durumu güncellendi');
+        fetchTicketDetails(); // Detayları yenile
+      } else {
+        Alert.alert('Hata', result.message);
+      }
+    } catch (error) {
+      console.error('Durum güncelleme hatası:', error);
+      Alert.alert('Hata', 'Destek talebi durumu güncellenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -228,6 +250,22 @@ export default function TicketDetailScreen() {
             >
               <Ionicons name="person-add-outline" size={20} color={colors.white} />
               <Text style={styles.actionButtonText}>Atama Yap</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.warning }]}
+              onPress={() => handleUpdateStatus('in_progress')}
+            >
+              <Ionicons name="time-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>İşleme Al</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.success }]}
+              onPress={() => handleUpdateStatus('resolved')}
+            >
+              <Ionicons name="checkmark-circle-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>Çözüldü</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -372,21 +410,25 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-around',
     padding: 15,
+    gap: 10,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
     borderRadius: 5,
-    minWidth: 120,
+    minWidth: '45%',
     justifyContent: 'center',
+    marginBottom: 10,
   },
   actionButtonText: {
     color: colors.white,
     marginLeft: 5,
     fontWeight: '500',
+    fontSize: 14,
   },
   modalContainer: {
     flex: 1,

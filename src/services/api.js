@@ -246,7 +246,7 @@ export const ticketService = {
       return response.data;
     } catch (error) {
       console.error('Destek Talebi Listesi Hatası:', error);
-      throw error;
+      return { items: [] }; // Hata durumunda boş dizi döndür
     }
   },
 
@@ -353,6 +353,26 @@ export const ticketService = {
       return {
         success: false,
         message: error.response?.data?.detail || 'Destek talebi atanırken bir hata oluştu'
+      };
+    }
+  },
+
+  updateTicketStatus: async (ticketId, status) => {
+    try {
+      console.log('Destek talebi durumu güncelleme isteği:', { ticketId, status });
+      const response = await api.put(`/tickets/${ticketId}/status`, {
+        status: status
+      });
+      console.log('Destek talebi durumu güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Destek talebi durumu güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Destek talebi durumu güncellenirken bir hata oluştu'
       };
     }
   },
