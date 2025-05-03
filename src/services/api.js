@@ -376,18 +376,96 @@ export const ticketService = {
       };
     }
   },
+
+  detachEquipment: async (ticketId, equipmentId) => {
+    try {
+      console.log('Ekipman bağlantısı kaldırma isteği:', { ticketId, equipmentId });
+      const response = await api.delete(`/tickets/${ticketId}/equipment/${equipmentId}`);
+      console.log('Ekipman bağlantısı kaldırma başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman bağlantısı kaldırma hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman bağlantısı kaldırılırken bir hata oluştu'
+      };
+    }
+  },
+
+  getTicketStats: async () => {
+    try {
+      console.log('Bilet istatistikleri getiriliyor');
+      const response = await api.get('/tickets/stats/');
+      console.log('Bilet istatistikleri başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Bilet istatistikleri alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Bilet istatistikleri alınırken bir hata oluştu'
+      };
+    }
+  },
+
+  getDepartmentStats: async () => {
+    try {
+      console.log('Departman istatistikleri getiriliyor');
+      const response = await api.get('/tickets/stats/department');
+      console.log('Departman istatistikleri başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman istatistikleri alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman istatistikleri alınırken bir hata oluştu'
+      };
+    }
+  },
+
+  getUserStats: async () => {
+    try {
+      console.log('Kullanıcı istatistikleri getiriliyor');
+      const response = await api.get('/tickets/stats/user');
+      console.log('Kullanıcı istatistikleri başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı istatistikleri alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı istatistikleri alınırken bir hata oluştu'
+      };
+    }
+  },
 };
 
 export const userService = {
   getUserDetails: async (userId) => {
     try {
       console.log('Kullanıcı detayları getiriliyor:', userId);
-      const response = await api.get(`/auth/admin/users/${userId}`);
+      const response = await api.get(`/users/${userId}`);
       console.log('Kullanıcı detayları başarıyla alındı:', response.data);
-      return response.data;
+      return {
+        success: true,
+        data: response.data
+      };
     } catch (error) {
       console.error('Kullanıcı detayları alınırken hata:', error);
-      throw error;
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı detayları alınırken bir hata oluştu'
+      };
     }
   },
 
@@ -403,10 +481,10 @@ export const userService = {
     }
   },
 
-  getUsers: async () => {
+  getUsers: async (params = {}) => {
     try {
-      console.log('Kullanıcı listesi getiriliyor');
-      const response = await api.get('/auth/admin/users');
+      console.log('Kullanıcı listesi getiriliyor', params);
+      const response = await api.get('/users/', { params });
       console.log('Kullanıcı listesi başarıyla alındı:', response.data);
       return {
         success: true,
@@ -417,6 +495,336 @@ export const userService = {
       return {
         success: false,
         message: error.response?.data?.detail || 'Kullanıcı listesi alınırken bir hata oluştu'
+      };
+    }
+  },
+  
+  // API'nin beklediği rol formatına dönüştürme fonksiyonu
+  formatRoleForAPI: (role) => {
+    // Backend enum değerleri küçük harfler olmalı
+    switch (role.toUpperCase()) {
+      case 'ADMIN':
+        return 'admin';
+      case 'SUPPORT':
+        return 'support';
+      case 'USER':
+        return 'user';
+      case 'DEPARTMENT_MANAGER':
+        return 'department_manager';
+      case 'DEPARTMENT_EMPLOYEE':
+        return 'department_employee';
+      default:
+        return role.toLowerCase(); // Gelen değer zaten küçük harfliyse değiştirmez
+    }
+  },
+  
+  createUser: async (userData) => {
+    try {
+      console.log('Kullanıcı oluşturma isteği gönderiliyor:', userData);
+      
+      // Role değerini API'nin beklediği formata dönüştürelim
+      const formattedData = {
+        ...userData,
+        role: userService.formatRoleForAPI(userData.role)
+      };
+      
+      console.log('Formatlanmış veri:', formattedData);
+      
+      const response = await api.post('/users/', formattedData);
+      console.log('Kullanıcı oluşturma başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı oluşturma hatası:', error.response?.data || error);
+      let errorMessage = 'Kullanıcı oluşturulurken bir hata oluştu';
+      
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => `${err.msg} (${err.loc.join('.')})`).join('\n');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  },
+  
+  updateUser: async (userId, userData) => {
+    try {
+      console.log('Kullanıcı güncelleme isteği gönderiliyor:', { userId, userData });
+      
+      // Role değerini API'nin beklediği formata dönüştürelim
+      const formattedData = {
+        ...userData
+      };
+      
+      if (userData.role) {
+        formattedData.role = userService.formatRoleForAPI(userData.role);
+      }
+      
+      console.log('Formatlanmış güncelleme verisi:', formattedData);
+      
+      const response = await api.put(`/users/${userId}`, formattedData);
+      console.log('Kullanıcı güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı güncelleme hatası:', error.response?.data || error);
+      let errorMessage = 'Kullanıcı güncellenirken bir hata oluştu';
+      
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => `${err.msg} (${err.loc.join('.')})`).join('\n');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      }
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
+    }
+  },
+  
+  deleteUser: async (userId) => {
+    try {
+      console.log('Kullanıcı silme isteği gönderiliyor:', userId);
+      const response = await api.delete(`/users/${userId}`);
+      console.log('Kullanıcı silme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı silme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı silinirken bir hata oluştu'
+      };
+    }
+  }
+};
+
+export const departmentService = {
+  getDepartments: async () => {
+    try {
+      console.log('Departman listesi getiriliyor');
+      const response = await api.get('/departments/');
+      console.log('Departman listesi başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman listesi alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman listesi alınırken bir hata oluştu'
+      };
+    }
+  },
+  
+  createDepartment: async (departmentData) => {
+    try {
+      console.log('Departman oluşturma isteği:', departmentData);
+      const response = await api.post('/departments/', departmentData);
+      console.log('Departman oluşturma başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman oluşturma hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman oluşturulurken bir hata oluştu'
+      };
+    }
+  },
+  
+  updateDepartment: async (departmentId, departmentData) => {
+    try {
+      console.log('Departman güncelleme isteği:', { departmentId, departmentData });
+      const response = await api.put(`/departments/${departmentId}`, departmentData);
+      console.log('Departman güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman güncellenirken bir hata oluştu'
+      };
+    }
+  },
+  
+  deleteDepartment: async (departmentId) => {
+    try {
+      console.log('Departman silme isteği:', departmentId);
+      const response = await api.delete(`/departments/${departmentId}`);
+      console.log('Departman silme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman silme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman silinirken bir hata oluştu'
+      };
+    }
+  },
+  
+  getDepartment: async (departmentId) => {
+    try {
+      console.log('Departman detayları getiriliyor:', departmentId);
+      const response = await api.get(`/departments/${departmentId}`);
+      console.log('Departman detayları başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman detayları alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman detayları alınırken bir hata oluştu'
+      };
+    }
+  },
+  
+  getDepartmentUsers: async (departmentId) => {
+    try {
+      console.log('Departman kullanıcıları getiriliyor:', departmentId);
+      const response = await api.get(`/departments/${departmentId}/users`);
+      console.log('Departman kullanıcıları başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Departman kullanıcıları alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Departman kullanıcıları alınırken bir hata oluştu'
+      };
+    }
+  },
+};
+
+export const equipmentService = {
+  getAllEquipment: async () => {
+    try {
+      console.log('Ekipman listesi getiriliyor');
+      const response = await api.get('/equipment/');
+      console.log('Ekipman listesi başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman listesi alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman listesi alınırken bir hata oluştu'
+      };
+    }
+  },
+  
+  createEquipment: async (equipmentData) => {
+    try {
+      console.log('Ekipman oluşturma isteği:', equipmentData);
+      
+      // API'ye gönderilecek veriyi hazırla
+      const requestData = {
+        ...equipmentData,
+        description: equipmentData.notes || ''  // notes alanını description olarak gönder
+      };
+      
+      const response = await api.post('/equipment/', requestData);
+      console.log('Ekipman oluşturma başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman oluşturma hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman oluşturulurken bir hata oluştu'
+      };
+    }
+  },
+  
+  getEquipment: async (equipmentId) => {
+    try {
+      console.log('Ekipman detayları getiriliyor:', equipmentId);
+      const response = await api.get(`/equipment/${equipmentId}`);
+      console.log('Ekipman detayları başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman detayları alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman detayları alınırken bir hata oluştu'
+      };
+    }
+  },
+  
+  updateEquipment: async (equipmentId, equipmentData) => {
+    try {
+      console.log('Ekipman güncelleme isteği:', { equipmentId, equipmentData });
+      
+      // API'ye gönderilecek veriyi hazırla
+      const requestData = {
+        ...equipmentData,
+        description: equipmentData.notes || ''  // notes alanını description olarak gönder
+      };
+      
+      const response = await api.put(`/equipment/${equipmentId}`, requestData);
+      console.log('Ekipman güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman güncellenirken bir hata oluştu'
+      };
+    }
+  },
+  
+  deleteEquipment: async (equipmentId) => {
+    try {
+      console.log('Ekipman silme isteği:', equipmentId);
+      const response = await api.delete(`/equipment/${equipmentId}`);
+      console.log('Ekipman silme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman silme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman silinirken bir hata oluştu'
       };
     }
   },

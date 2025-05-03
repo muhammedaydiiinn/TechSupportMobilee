@@ -9,9 +9,10 @@ import {
   Alert,
   Modal,
   TextInput,
+  FlatList,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { ticketService } from '../../services/api';
+import { ticketService, equipmentService } from '../../services/api';
 import { userService } from '../../services/api';
 import { Card } from '../../components/Card';
 import { colors } from '../../theme/colors';
@@ -33,10 +34,19 @@ export default function TicketDetailScreen() {
   const [assignNote, setAssignNote] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [users, setUsers] = useState([]);
+  
+  // Ekipman yönetimi için state'ler
+  const [ticketEquipments, setTicketEquipments] = useState([]);
+  const [allEquipments, setAllEquipments] = useState([]);
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState(null);
+  const [loadingEquipment, setLoadingEquipment] = useState(false);
 
   useEffect(() => {
     fetchTicketDetails();
     fetchUsers();
+    fetchAllEquipments();
+    fetchTicketEquipments();
   }, [ticketId]);
 
   const fetchUsers = async () => {
@@ -167,6 +177,49 @@ export default function TicketDetailScreen() {
     return priorityMap[priority] || priority;
   };
 
+  // Ekipmanları getir
+  const fetchAllEquipments = async () => {
+    try {
+      const response = await equipmentService.getAllEquipment();
+      if (response.success) {
+        setAllEquipments(response.data);
+      }
+    } catch (error) {
+      console.error('Ekipman listesi alınamadı:', error);
+    }
+  };
+
+  // Ticket'a ait ekipmanları getir
+  const fetchTicketEquipments = async () => {
+    try {
+      // API'de ticket'a ait ekipmanlar endpoint'i eklenecek
+      // Şimdilik boş array döndürüyoruz
+      setTicketEquipments([]);
+    } catch (error) {
+      console.error('Ticket ekipmanları alınamadı:', error);
+    }
+  };
+
+  // Ekipman bağlantısını kaldır
+  const handleDetachEquipment = async (equipmentId) => {
+    try {
+      setLoadingEquipment(true);
+      const result = await ticketService.detachEquipment(ticketId, equipmentId);
+      
+      if (result.success) {
+        Alert.alert('Başarılı', 'Ekipman bağlantısı kaldırıldı');
+        fetchTicketEquipments(); // Ekipman listesini yenile
+      } else {
+        Alert.alert('Hata', result.message || 'Ekipman bağlantısı kaldırılırken bir hata oluştu');
+      }
+    } catch (error) {
+      console.error('Ekipman bağlantısı kaldırma hatası:', error);
+      Alert.alert('Hata', 'Ekipman bağlantısı kaldırılırken bir hata oluştu');
+    } finally {
+      setLoadingEquipment(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -275,9 +328,99 @@ export default function TicketDetailScreen() {
               <Ionicons name="close-circle-outline" size={20} color={colors.white} />
               <Text style={styles.actionButtonText}>Kapat</Text>
             </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+              onPress={() => setShowEquipmentModal(true)}
+            >
+              <Ionicons name="hardware-chip-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>Ekipman Yönet</Text>
+            </TouchableOpacity>
           </>
         )}
       </View>
+
+      {/* Ekipman Listesi */}
+      {ticketEquipments.length > 0 && (
+        <Card style={styles.equipmentCard}>
+          <Text style={styles.sectionTitle}>İlişkili Ekipmanlar</Text>
+          <FlatList
+            data={ticketEquipments}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.equipmentItem}>
+                <View style={styles.equipmentInfo}>
+                  <Text style={styles.equipmentName}>{item.name}</Text>
+                  <Text style={styles.equipmentType}>{item.type}</Text>
+                </View>
+                {user?.role === 'admin' && ticket?.status !== 'closed' && (
+                  <TouchableOpacity
+                    style={styles.detachButton}
+                    onPress={() => handleDetachEquipment(item.id)}
+                    disabled={loadingEquipment}
+                  >
+                    {loadingEquipment ? (
+                      <ActivityIndicator size="small" color={colors.error} />
+                    ) : (
+                      <Ionicons name="trash-outline" size={20} color={colors.error} />
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          />
+        </Card>
+      )}
+
+      {/* Ekipman Modal */}
+      <Modal
+        visible={showEquipmentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEquipmentModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ekipman Yönetimi</Text>
+            
+            <Text style={styles.modalSubtitle}>Bağlı Ekipmanlar</Text>
+            {ticketEquipments.length === 0 ? (
+              <Text style={styles.emptyMessage}>Bu destek talebine bağlı ekipman bulunmamaktadır.</Text>
+            ) : (
+              <FlatList
+                data={ticketEquipments}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <View style={styles.equipmentItem}>
+                    <Text style={styles.equipmentName}>{item.name}</Text>
+                    <TouchableOpacity
+                      style={styles.detachButton}
+                      onPress={() => handleDetachEquipment(item.id)}
+                      disabled={loadingEquipment}
+                    >
+                      {loadingEquipment ? (
+                        <ActivityIndicator size="small" color={colors.error} />
+                      ) : (
+                        <Text style={styles.detachText}>Bağlantıyı Kaldır</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+                style={styles.equipmentList}
+              />
+            )}
+            
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowEquipmentModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Kapat</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Atama Modal */}
       <Modal
@@ -307,8 +450,6 @@ export default function TicketDetailScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
-          
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -463,8 +604,8 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 16,
-    color: colors.text,
     fontWeight: '500',
+    color: colors.text,
   },
   userEmail: {
     fontSize: 14,
@@ -482,14 +623,13 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10,
+    marginTop: 15,
   },
   modalButton: {
-    paddingHorizontal: 20,
     paddingVertical: 10,
+    paddingHorizontal: 15,
     borderRadius: 5,
-    minWidth: 100,
-    alignItems: 'center',
+    marginLeft: 10,
   },
   cancelButton: {
     backgroundColor: colors.textLight,
@@ -501,4 +641,58 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '500',
   },
+  equipmentCard: {
+    margin: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: colors.text,
+  },
+  equipmentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  equipmentInfo: {
+    flex: 1,
+  },
+  equipmentName: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  equipmentType: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  detachButton: {
+    padding: 8,
+    borderRadius: 5,
+    backgroundColor: 'transparent',
+  },
+  detachText: {
+    color: colors.error,
+    fontWeight: '500',
+  },
+  equipmentList: {
+    maxHeight: 200,
+  },
+  emptyMessage: {
+    color: colors.textLight,
+    textAlign: 'center',
+    marginVertical: 10,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 5,
+    color: colors.text,
+  }
 });

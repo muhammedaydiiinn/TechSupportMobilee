@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
+  ScrollView
 } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -13,61 +13,116 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CustomDrawerContent = ({ navigation, onLogout }) => {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const isManager = user?.role === 'department_manager';
+  const isSupport = user?.role === 'support';
 
-  const menuItems = [
+  useEffect(() => {
+    console.log('CustomDrawerContent içinde kullanıcı rolü:', user?.role);
+    console.log('Admin mi?', isAdmin);
+    console.log('Yönetici mi?', isManager);
+    console.log('Destek ekibi mi?', isSupport);
+  }, [user, isAdmin, isManager, isSupport]);
+
+  const generalMenuItems = [
     { name: 'Dashboard', icon: 'home', label: 'Ana Sayfa' },
     { name: 'CreateTicket', icon: 'add-circle', label: 'Yeni Destek Talebi Oluştur' },
     { name: 'MyTickets', icon: 'list', label: 'Destek Taleplerim' },
+  ];
+
+  const adminMenuItems = [
+    { name: 'UserManagement', icon: 'people', label: 'Kullanıcı Yönetimi' },
+    { name: 'DepartmentManagement', icon: 'business', label: 'Departman Yönetimi' },
+    { name: 'EquipmentManagement', icon: 'hardware-chip', label: 'Ekipman Yönetimi' },
+  ];
+  
+  const managerMenuItems = [
+    { name: 'DepartmentUsers', icon: 'people', label: 'Departman Kullanıcıları' },
+    { name: 'DepartmentTickets', icon: 'document-text', label: 'Departman Talepleri' },
+    { name: 'DepartmentEquipment', icon: 'hardware-chip', label: 'Departman Ekipmanları' },
+  ];
+  
+  const supportMenuItems = [
+    { name: 'AllTickets', icon: 'list', label: 'Tüm Destek Talepleri' },
+    { name: 'ActiveTickets', icon: 'alert-circle', label: 'Aktif Talepler' },
+  ];
+
+  const profileMenuItems = [
     { name: 'Profile', icon: 'person', label: 'Profil' },
     { name: 'Settings', icon: 'settings', label: 'Ayarlar' },
   ];
 
+  const renderMenuItem = (item) => (
+    <TouchableOpacity
+      key={item.name}
+      style={styles.menuItem}
+      onPress={() => navigation.navigate(item.name)}
+    >
+      <Ionicons name={item.icon} size={22} color={COLORS.primary} />
+      <Text style={styles.menuItemText}>{item.label}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person-circle" size={60} color={COLORS.primary} />
+      <ScrollView>
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+          
+            <Text style={styles.appName}>Tech Support</Text>
           </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user?.first_name} {user?.last_name}
-            </Text>
-            <Text style={styles.userEmail} numberOfLines={1}>
-              {user?.email}
-            </Text>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName}>{user?.first_name} {user?.last_name}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
+            <View style={styles.roleTag}>
+              <Text style={styles.roleText}>
+                {isAdmin ? 'Yönetici' : 
+                 isManager ? 'Departman Yöneticisi' :
+                 isSupport ? 'Destek Ekibi' : 'Kullanıcı'}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
-
-      <View style={styles.menuContainer}>
-        {menuItems.map((item) => (
-          <TouchableOpacity
-            key={item.name}
-            style={styles.menuItem}
-            onPress={() => navigation.navigate(item.name)}
-          >
-            <View style={styles.menuItemContent}>
-              <View style={styles.iconContainer}>
-                <Ionicons name={item.icon} size={22} color={COLORS.text} />
-              </View>
-              <Text style={styles.menuItemText}>{item.label}</Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.footer}>
+        
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Genel</Text>
+          {generalMenuItems.map(renderMenuItem)}
+        </View>
+        
+        {isAdmin && (
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Yönetim</Text>
+            {adminMenuItems.map(renderMenuItem)}
+          </View>
+        )}
+        
+        {isManager && (
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Departman Yönetimi</Text>
+            {managerMenuItems.map(renderMenuItem)}
+          </View>
+        )}
+        
+        {isSupport && (
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Destek Ekibi</Text>
+            {supportMenuItems.map(renderMenuItem)}
+          </View>
+        )}
+        
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionTitle}>Hesap</Text>
+          {profileMenuItems.map(renderMenuItem)}
+        </View>
+        
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={onLogout}
         >
-          <View style={styles.logoutContent}>
-            <Ionicons name="log-out" size={22} color={COLORS.white} />
-            <Text style={styles.logoutText}>Çıkış Yap</Text>
-          </View>
+          <Ionicons name="log-out" size={22} color={COLORS.error} />
+          <Text style={styles.logoutText}>Çıkış Yap</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -82,72 +137,74 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  userInfo: {
+  logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 15,
   },
-  avatarContainer: {
-    marginRight: 15,
+  appName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.primary,
   },
-  userDetails: {
-    flex: 1,
+  userInfo: {
+    marginTop: 5,
   },
   userName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 5,
   },
   userEmail: {
     fontSize: 14,
     color: COLORS.textLight,
+    marginBottom: 8,
   },
-  menuContainer: {
-    flex: 1,
-    paddingTop: 20,
+  roleTag: {
+    backgroundColor: COLORS.primary + '20',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
-  menuItem: {
-    paddingVertical: 12,
+  roleText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  menuSection: {
+    marginTop: 15,
     paddingHorizontal: 20,
   },
-  menuItemContent: {
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: COLORS.textLight,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
+    paddingVertical: 12,
   },
   menuItemText: {
+    marginLeft: 15,
     fontSize: 16,
     color: COLORS.text,
-    fontWeight: '500',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
   },
   logoutButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    padding: 15,
-  },
-  logoutContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: 30,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   logoutText: {
-    color: COLORS.white,
+    marginLeft: 15,
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    color: COLORS.error,
   },
 });
 
