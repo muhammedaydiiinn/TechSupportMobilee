@@ -125,6 +125,8 @@ export default function CreateTicketScreen() {
 
   const handleSubmit = async () => {
     try {
+      setLoading(true); // Loading durumunu başlangıçta true yapalım
+
       if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.priority) {
         Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
         return;
@@ -133,6 +135,7 @@ export default function CreateTicketScreen() {
       const token = await TokenService.getToken();
       if (!token) {
         Alert.alert('Hata', 'Oturum süreniz dolmuş. Lütfen tekrar giriş yapın.');
+        navigation.navigate('Login');
         return;
       }
 
@@ -143,38 +146,70 @@ export default function CreateTicketScreen() {
         priority: formData.priority,
       };
 
+      console.log('Destek talebi oluşturuluyor:', ticketData);
       const result = await ticketService.createTicket(ticketData);
+      
       if (!result.success) {
-        Alert.alert('Hata', result.message);
+        Alert.alert('Hata', result.message || 'Destek talebi oluşturulurken bir hata oluştu');
         return;
       }
 
+      // Dosya yükleme işlemi
       if (formData.attachments && formData.attachments.length > 0) {
-        for (const file of formData.attachments) {
-          const uploadFormData = new FormData();
-          uploadFormData.append('file', {
-            uri: file.uri,
-            type: file.type || 'image/jpeg',
-            name: file.fileName || `file-${Date.now()}.jpg`
-          });
+        try {
+          for (const file of formData.attachments) {
+            const uploadFormData = new FormData();
+            uploadFormData.append('file', {
+              uri: file.uri,
+              type: file.type || 'image/jpeg',
+              name: file.fileName || `file-${Date.now()}.jpg`
+            });
 
-          const uploadResult = await ticketService.uploadFiles(result.data.id, uploadFormData);
-          if (!uploadResult.success) {
-            Alert.alert('Uyarı', `Dosya yüklenemedi: ${uploadResult.message}`);
-            continue;
+            const uploadResult = await ticketService.uploadFiles(result.data.id, uploadFormData);
+            if (!uploadResult.success) {
+              console.warn('Dosya yükleme uyarısı:', uploadResult.message);
+              continue;
+            }
           }
+        } catch (uploadError) {
+          console.error('Dosya yükleme hatası:', uploadError);
+          // Dosya yükleme hatası olsa bile devam ediyoruz
         }
       }
 
-      Alert.alert('Başarılı', 'Destek talebi başarıyla oluşturuldu', [
-        {
-          text: 'Tamam',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      // Başarılı mesajı ve yönlendirme
+      Alert.alert(
+        'Başarılı',
+        'Destek talebi başarıyla oluşturuldu',
+        [
+          {
+            text: 'Tamam',
+            onPress: () => {
+              // Önce loading'i false yapalım
+              setLoading(false);
+              // Sonra yönlendirme yapalım
+              navigation.reset({
+                index: 0,
+                routes: [
+                  { 
+                    name: 'TicketDetail',
+                    params: { ticketId: result.data.id }
+                  }
+                ],
+              });
+            },
+          },
+        ],
+        { cancelable: false }
+      );
     } catch (error) {
       console.error('Destek talebi oluşturma hatası:', error);
-      Alert.alert('Hata', 'Destek talebi oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.');
+      Alert.alert(
+        'Hata',
+        error.message || 'Destek talebi oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.'
+      );
+    } finally {
+      setLoading(false);
     }
   };
 

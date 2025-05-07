@@ -42,11 +42,15 @@ export default function TicketDetailScreen() {
   const [selectedEquipment, setSelectedEquipment] = useState(null);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
 
+  const [aiResponses, setAiResponses] = useState([]);
+  const [loadingAI, setLoadingAI] = useState(false);
+
   useEffect(() => {
     fetchTicketDetails();
     fetchUsers();
     fetchAllEquipments();
     fetchTicketEquipments();
+    fetchAIResponses();
   }, [ticketId]);
 
   const fetchUsers = async () => {
@@ -220,6 +224,20 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const fetchAIResponses = async () => {
+    try {
+      setLoadingAI(true);
+      const response = await ticketService.getTicketAIResponses(ticketId);
+      if (response.success) {
+        setAiResponses(response.data);
+      }
+    } catch (error) {
+      console.error('AI yanıtları alınamadı:', error);
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -280,17 +298,52 @@ export default function TicketDetailScreen() {
           <View style={styles.detailRow}>
             <Ionicons name="person-outline" size={20} color={colors.textLight} />
             <Text style={styles.detailText}>
-              Oluşturan: {createdBy ? `${createdBy.first_name} ${createdBy.last_name}` : 'Belirtilmemiş'}
+              Oluşturan: {createdBy?.data ? `${createdBy.data.first_name} ${createdBy.data.last_name}` : 'Belirtilmemiş'}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
             <Ionicons name="people-outline" size={20} color={colors.textLight} />
             <Text style={styles.detailText}>
-              Atanan: {assignedTo ? `${assignedTo.first_name} ${assignedTo.last_name}` : 'Atanmamış'}
+              Atanan: {assignedTo?.data ? `${assignedTo.data.first_name} ${assignedTo.data.last_name}` : 'Atanmamış'}
             </Text>
           </View>
         </View>
+      </Card>
+
+      {/* AI Responses Section */}
+      <Card style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="chatbubble-ellipses" size={24} color={colors.primary} />
+          <Text style={styles.sectionTitle}>AI Analizleri ve Önerileri</Text>
+        </View>
+        
+        {loadingAI ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : aiResponses.length > 0 ? (
+          aiResponses.map((response, index) => (
+            <View key={index} style={styles.aiResponseContainer}>
+              <View style={styles.aiResponseHeader}>
+                <Ionicons name="analytics" size={20} color={colors.primary} />
+                <Text style={styles.aiResponseTitle}>
+                  {response.type === 'analysis' ? 'Analiz' : 'Öneri'}
+                </Text>
+                <Text style={styles.aiResponseDate}>
+                  {new Date(response.created_at).toLocaleString('tr-TR')}
+                </Text>
+              </View>
+              <Text style={styles.aiResponseContent}>{response.content}</Text>
+              {response.confidence && (
+                <View style={styles.confidenceContainer}>
+                  <Text style={styles.confidenceLabel}>Güven Oranı:</Text>
+                  <Text style={styles.confidenceValue}>{response.confidence}%</Text>
+                </View>
+              )}
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noDataText}>Henüz AI analizi bulunmuyor</Text>
+        )}
       </Card>
 
       {/* İşlem butonları */}
@@ -694,5 +747,66 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 5,
     color: colors.text,
-  }
+  },
+  sectionCard: {
+    margin: 15,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  aiResponseContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  aiResponseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  aiResponseTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 8,
+  },
+  aiResponseDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginLeft: 'auto',
+  },
+  aiResponseContent: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  confidenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  confidenceLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  confidenceValue: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  noDataText: {
+    textAlign: 'center',
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    padding: 16,
+  },
 });

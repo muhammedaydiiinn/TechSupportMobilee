@@ -168,6 +168,17 @@ export const authService = {
     }
   },
 
+  getProfile: async () => {
+    try {
+      const response = await api.get('/auth/profile');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('Profile fetch error:', error.response?.data || error);
+      const errorMessage = getErrorMessage(error);
+      return { success: false, message: errorMessage };
+    }
+  },
+
   register: async (userData) => {
     try {
       const requestData = {
@@ -250,6 +261,24 @@ export const ticketService = {
     }
   },
 
+  getTicketAIResponses: async (ticketId) => {
+    try {
+      console.log('Ticket AI yanıtları getiriliyor:', ticketId);
+      const response = await api.get(`/ai/ticket/${ticketId}/ai-responses`);
+      console.log('Ticket AI yanıtları başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ticket AI yanıtları alınırken hata:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ticket AI yanıtları alınırken bir hata oluştu'
+      };
+    }
+  },
+
   getTicket: async (ticketId) => {
     try {
       console.log('Destek talebi detayları getiriliyor:', ticketId);
@@ -265,17 +294,35 @@ export const ticketService = {
   createTicket: async (ticketData) => {
     try {
       console.log('Destek talebi oluşturma isteği:', ticketData);
-      const response = await api.post('/tickets/', ticketData);
+      const response = await api.post('/tickets/', ticketData, {
+        timeout: 30000, // Timeout süresini 30 saniyeye çıkaralım
+      });
       console.log('Destek talebi oluşturma başarılı:', response.data);
       return {
         success: true,
         data: response.data,
       };
     } catch (error) {
-      console.error('Destek talebi oluşturma hatası:', error.response?.data || error);
+      console.error('Destek talebi oluşturma hatası:', error);
+      
+      // Timeout hatası için özel mesaj
+      if (error.code === 'ECONNABORTED') {
+        return {
+          success: false,
+          message: 'İstek zaman aşımına uğradı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.',
+          error: error
+        };
+      }
+
+      // Diğer hata durumları için
+      const errorMessage = error.response?.data?.detail || 
+                         error.response?.data?.message || 
+                         'Destek talebi oluşturulurken bir hata oluştu';
+      
       return {
         success: false,
-        message: error.response?.data?.detail || 'Destek talebi oluşturulurken bir hata oluştu',
+        message: errorMessage,
+        error: error.response?.data
       };
     }
   },
