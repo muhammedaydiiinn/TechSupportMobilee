@@ -17,6 +17,60 @@ import { Card } from '../components/Card';
 import { colors } from '../theme/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const STATUS_MAP = {
+  OPEN: {
+    value: 'open',
+    label: 'Açık',
+    icon: 'open-outline',
+    color: colors.info
+  },
+  IN_PROGRESS: {
+    value: 'in_progress',
+    label: 'İşlemde',
+    icon: 'time-outline',
+    color: colors.warning
+  },
+  RESOLVED: {
+    value: 'resolved',
+    label: 'Çözüldü',
+    icon: 'checkmark-circle-outline',
+    color: colors.success
+  },
+  CLOSED: {
+    value: 'closed',
+    label: 'Kapalı',
+    icon: 'close-circle-outline',
+    color: colors.error
+  }
+};
+
+const PRIORITY_MAP = {
+  LOW: {
+    value: 'low',
+    label: 'Düşük',
+    icon: 'arrow-down-circle-outline',
+    color: colors.info
+  },
+  MEDIUM: {
+    value: 'medium',
+    label: 'Orta',
+    icon: 'remove-circle-outline',
+    color: colors.warning
+  },
+  HIGH: {
+    value: 'high',
+    label: 'Yüksek',
+    icon: 'arrow-up-circle-outline',
+    color: colors.error
+  },
+  CRITICAL: {
+    value: 'critical',
+    label: 'Kritik',
+    icon: 'alert-circle-outline',
+    color: colors.error
+  }
+};
+
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -26,6 +80,7 @@ const DashboardScreen = ({ navigation }) => {
     total: 0,
     open: 0,
     inProgress: 0,
+    resolved: 0,
     closed: 0
   });
 
@@ -44,9 +99,10 @@ const DashboardScreen = ({ navigation }) => {
       // İstatistikleri hesapla
       const stats = {
         total: ticketsData.length,
-        open: ticketsData.filter(t => t.status === 'open').length,
-        inProgress: ticketsData.filter(t => t.status === 'in_progress').length,
-        closed: ticketsData.filter(t => t.status === 'closed').length
+        open: ticketsData.filter(t => t.status === STATUS_MAP.OPEN.value).length,
+        inProgress: ticketsData.filter(t => t.status === STATUS_MAP.IN_PROGRESS.value).length,
+        resolved: ticketsData.filter(t => t.status === STATUS_MAP.RESOLVED.value).length,
+        closed: ticketsData.filter(t => t.status === STATUS_MAP.CLOSED.value).length
       };
       
       setStats(stats);
@@ -56,6 +112,22 @@ const DashboardScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStatusText = (status) => {
+    return STATUS_MAP[status?.toUpperCase()]?.label || status;
+  };
+
+  const getStatusColor = (status) => {
+    return STATUS_MAP[status?.toUpperCase()]?.color || colors.text;
+  };
+
+  const getPriorityText = (priority) => {
+    return PRIORITY_MAP[priority?.toUpperCase()]?.label || priority;
+  };
+
+  const getPriorityColor = (priority) => {
+    return PRIORITY_MAP[priority?.toUpperCase()]?.color || colors.text;
   };
 
   if (loading) {
@@ -75,105 +147,128 @@ const DashboardScreen = ({ navigation }) => {
   }
 
   return (
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.email}</Text>
-        </View>
+    <ScrollView style={styles.scrollView}>
+      <View style={styles.header}>
+        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.email}</Text>
+      </View>
 
-        <View style={styles.statsContainer}>
-          <Card style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Toplam Destek Talebi</Text>
-          </Card>
+      <View style={styles.statsContainer}>
+        <Card style={styles.statCard}>
+          <Text style={styles.statNumber}>{stats.total}</Text>
+          <Text style={styles.statLabel}>Toplam Destek Talebi</Text>
+        </Card>
 
-          <Card style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.open}</Text>
-            <Text style={styles.statLabel}>Açık</Text>
-          </Card>
+        <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.OPEN.color, borderLeftWidth: 4 }]}>
+          <Text style={[styles.statNumber, { color: STATUS_MAP.OPEN.color }]}>{stats.open}</Text>
+          <Text style={styles.statLabel}>{STATUS_MAP.OPEN.label}</Text>
+        </Card>
 
-          <Card style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.inProgress}</Text>
-            <Text style={styles.statLabel}>İşlemde</Text>
-          </Card>
+        <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.IN_PROGRESS.color, borderLeftWidth: 4 }]}>
+          <Text style={[styles.statNumber, { color: STATUS_MAP.IN_PROGRESS.color }]}>{stats.inProgress}</Text>
+          <Text style={styles.statLabel}>{STATUS_MAP.IN_PROGRESS.label}</Text>
+        </Card>
 
-          <Card style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.closed}</Text>
-            <Text style={styles.statLabel}>Kapalı</Text>
-          </Card>
-        </View>
+        <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.RESOLVED.color, borderLeftWidth: 4 }]}>
+          <Text style={[styles.statNumber, { color: STATUS_MAP.RESOLVED.color }]}>{stats.resolved}</Text>
+          <Text style={styles.statLabel}>{STATUS_MAP.RESOLVED.label}</Text>
+        </Card>
 
-        <View style={styles.cardsContainer}>
-          <TouchableOpacity 
-            style={styles.card}
-            onPress={() => navigation.navigate('CreateTicket')}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
-              <Ionicons name="add-circle" size={30} color="#2196F3" />
-            </View>
-            <Text style={styles.cardTitle}>Yeni Destek Talebi</Text>
-            <Text style={styles.cardSubtitle}>Destek talebi oluştur</Text>
+        <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.CLOSED.color, borderLeftWidth: 4 }]}>
+          <Text style={[styles.statNumber, { color: STATUS_MAP.CLOSED.color }]}>{stats.closed}</Text>
+          <Text style={styles.statLabel}>{STATUS_MAP.CLOSED.label}</Text>
+        </Card>
+      </View>
+
+      <View style={styles.cardsContainer}>
+        <TouchableOpacity 
+          style={styles.card}
+          onPress={() => navigation.navigate('CreateTicket')}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
+            <Ionicons name="add-circle" size={30} color="#2196F3" />
+          </View>
+          <Text style={styles.cardTitle}>Yeni Destek Talebi</Text>
+          <Text style={styles.cardSubtitle}>Destek talebi oluştur</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.card}
+          onPress={() => navigation.navigate('MyTickets')}
+        >
+          <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
+            <Ionicons name="list" size={30} color="#4CAF50" />
+          </View>
+          <Text style={styles.cardTitle}>Destek Taleplerim</Text>
+          <Text style={styles.cardSubtitle}>Tüm destek taleplerim</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.infoSection}>
+        <Text style={styles.sectionTitle}>Nasıl Destek Alırım?</Text>
+        <Text style={styles.infoText}>
+          1. "Yeni Destek Talebi" seçeneğine tıklayın{'\n'}
+          2. Destek talebinizin detaylarını girin{'\n'}
+          3. Gönder butonuna tıklayın{'\n'}
+          4. Destek ekibimiz en kısa sürede size dönüş yapacaktır
+        </Text>
+      </View>
+
+      {/* Son Destek Talepler */}
+      <View style={styles.recentTicketsContainer}>
+        <View style={styles.sectionTitleContainer}>
+          <Text style={styles.sectionTitle}>Son Destek Taleplerim</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('MyTickets')}>
+            <Text style={styles.viewAllText}>Tümünü Gör</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.card}
-            onPress={() => navigation.navigate('MyTickets')}
-          >
-            <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
-              <Ionicons name="list" size={30} color="#4CAF50" />
-            </View>
-            <Text style={styles.cardTitle}>Destek Taleplerim</Text>
-            <Text style={styles.cardSubtitle}>Tüm destek taleplerim</Text>
-          </TouchableOpacity>
         </View>
-
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Nasıl Destek Alırım?</Text>
-          <Text style={styles.infoText}>
-            1. "Yeni Destek Talebi" seçeneğine tıklayın{'\n'}
-            2. Destek talebinizin detaylarını girin{'\n'}
-            3. Gönder butonuna tıklayın{'\n'}
-            4. Destek ekibimiz en kısa sürede size dönüş yapacaktır
-          </Text>
-        </View>
-
-        {/* Son Destek Talepler */}
-        <View style={styles.recentTicketsContainer}>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Son Destek Taleplerim</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('MyTickets')}>
-              <Text style={styles.viewAllText}>Tümünü Gör</Text>
+        
+        {loading ? (
+          <Text style={styles.loadingText}>Yükleniyor...</Text>
+        ) : tickets.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Henüz bir destek talebi oluşturmadınız.</Text>
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => navigation.navigate('CreateTicket')}
+            >
+              <Text style={styles.createButtonText}>Destek Talebi Oluştur</Text>
             </TouchableOpacity>
           </View>
-          
-          {loading ? (
-            <Text style={styles.loadingText}>Yükleniyor...</Text>
-          ) : tickets.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Henüz bir destek talebi oluşturmadınız.</Text>
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={() => navigation.navigate('CreateTicket')}
-              >
-                <Text style={styles.createButtonText}>Destek Talebi Oluştur</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            tickets.slice(0, 5).map((ticket) => (
-              <TouchableOpacity
-                key={ticket.id}
-                style={styles.ticketCard}
-                onPress={() => navigation.navigate('TicketDetail', { ticketId: ticket.id })}
-              >
-                <Card style={styles.ticketCardContent}>
+        ) : (
+          tickets.slice(0, 5).map((ticket) => (
+            <TouchableOpacity
+              key={ticket.id}
+              style={styles.ticketCard}
+              onPress={() => navigation.navigate('TicketDetail', { ticketId: ticket.id })}
+            >
+              <Card style={styles.ticketCardContent}>
+                <View style={styles.ticketHeader}>
                   <Text style={styles.ticketTitle}>{ticket.title}</Text>
-                  <Text style={styles.ticketStatus}>Durum: {ticket.status}</Text>
-                  <Text style={styles.ticketPriority}>Öncelik: {ticket.priority}</Text>
-                </Card>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </ScrollView>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket.status) }]}>
+                    <Text style={styles.statusText}>{getStatusText(ticket.status)}</Text>
+                  </View>
+                </View>
+                <View style={styles.ticketFooter}>
+                  <View style={styles.priorityContainer}>
+                    <Ionicons 
+                      name={PRIORITY_MAP[ticket.priority?.toUpperCase()]?.icon || 'help-circle-outline'} 
+                      size={16} 
+                      color={getPriorityColor(ticket.priority)} 
+                    />
+                    <Text style={[styles.priorityText, { color: getPriorityColor(ticket.priority) }]}>
+                      {getPriorityText(ticket.priority)}
+                    </Text>
+                  </View>
+                  <Text style={styles.ticketDate}>
+                    {new Date(ticket.created_at).toLocaleDateString('tr-TR')}
+                  </Text>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
@@ -342,20 +437,44 @@ const styles = StyleSheet.create({
   ticketCardContent: {
     padding: 15,
   },
+  ticketHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  ticketFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priorityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priorityText: {
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  ticketDate: {
+    fontSize: 12,
+    color: colors.textLight,
+  },
   ticketTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
-  },
-  ticketStatus: {
-    fontSize: 14,
-    color: colors.text,
-    marginTop: 5,
-  },
-  ticketPriority: {
-    fontSize: 14,
-    color: colors.text,
-    marginTop: 5,
   },
 });
 

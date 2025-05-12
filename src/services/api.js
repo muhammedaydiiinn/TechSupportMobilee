@@ -495,6 +495,86 @@ export const ticketService = {
       };
     }
   },
+
+  // Ticket Timeline
+  getTicketTimeline: async (ticketId) => {
+    try {
+      const response = await api.get(`/tickets/${ticketId}/timeline`);
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Ticket Response
+  respondToTicket: async (ticketId, responseContent) => {
+    try {
+      console.log('Yanıt gönderme isteği:', { ticketId, responseContent });
+      const response = await api.post(`/tickets/${ticketId}/respond`, {
+        response_content: responseContent
+      }, {
+        params: {
+          response_content: responseContent
+        }
+      });
+      console.log('Yanıt gönderme başarılı:', response.data);
+      
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Yanıt gönderme hatası:', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Yanıt gönderilirken bir hata oluştu'
+      };
+    }
+  },
+
+  // Update Support Level
+  updateSupportLevel: async (ticketId, supportLevel) => {
+    try {
+      const response = await api.put(`/tickets/${ticketId}/support-level`, {
+        support_level: supportLevel
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Attach Equipment
+  attachEquipment: async (ticketId, equipmentId) => {
+    try {
+      const response = await api.post(`/tickets/${ticketId}/equipment`, {
+        equipment_id: equipmentId
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
+
+  // Add Attachment
+  addAttachment: async (ticketId, file, description = '') => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (description) {
+        formData.append('description', description);
+      }
+
+      const response = await api.post(`/tickets/${ticketId}/attachments`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error);
+    }
+  },
 };
 
 export const userService = {

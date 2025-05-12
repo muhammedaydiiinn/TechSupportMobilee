@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   FlatList,
+  Image,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ticketService, equipmentService } from '../../services/api';
@@ -18,6 +20,63 @@ import { Card } from '../../components/Card';
 import { colors } from '../../theme/colors';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatDate, formatRelativeDate } from '../../utils/dateUtils';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import DocumentPicker from 'react-native-document-picker';
+
+const STATUS_MAP = {
+  OPEN: {
+    value: 'open',
+    label: 'Açık',
+    icon: 'open-outline',
+    color: colors.info
+  },
+  IN_PROGRESS: {
+    value: 'in_progress',
+    label: 'İşlemde',
+    icon: 'time-outline',
+    color: colors.warning
+  },
+  RESOLVED: {
+    value: 'resolved',
+    label: 'Çözüldü',
+    icon: 'checkmark-circle-outline',
+    color: colors.success
+  },
+  CLOSED: {
+    value: 'closed',
+    label: 'Kapalı',
+    icon: 'close-circle-outline',
+    color: colors.error
+  }
+};
+
+const PRIORITY_MAP = {
+  LOW: {
+    value: 'low',
+    label: 'Düşük',
+    icon: 'arrow-down-circle-outline',
+    color: colors.info
+  },
+  MEDIUM: {
+    value: 'medium',
+    label: 'Orta',
+    icon: 'remove-circle-outline',
+    color: colors.warning
+  },
+  HIGH: {
+    value: 'high',
+    label: 'Yüksek',
+    icon: 'arrow-up-circle-outline',
+    color: colors.error
+  },
+  CRITICAL: {
+    value: 'critical',
+    label: 'Kritik',
+    icon: 'alert-circle-outline',
+    color: colors.error
+  }
+};
 
 export default function TicketDetailScreen() {
   const route = useRoute();
@@ -44,6 +103,12 @@ export default function TicketDetailScreen() {
 
   const [aiResponses, setAiResponses] = useState([]);
   const [loadingAI, setLoadingAI] = useState(false);
+
+  const [timeline, setTimeline] = useState([]);
+  const [responseContent, setResponseContent] = useState('');
+  const [sendingResponse, setSendingResponse] = useState(false);
+  const [attachments, setAttachments] = useState([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   useEffect(() => {
     fetchTicketDetails();
@@ -81,6 +146,15 @@ export default function TicketDetailScreen() {
       if (ticketData.assigned_to_id) {
         const assigned = await userService.getUserDetails(ticketData.assigned_to_id);
         setAssignedTo(assigned);
+      }
+
+      // Fetch timeline
+      const timelineData = await ticketService.getTicketTimeline(ticketId);
+      setTimeline(timelineData);
+
+      // Fetch attachments
+      if (ticketData.attachments) {
+        setAttachments(ticketData.attachments);
       }
     } catch (error) {
       console.error('Destek talebi detay hatası:', error);
@@ -134,16 +208,69 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const getStatusOptions = () => {
+    const baseOptions = Object.values(STATUS_MAP);
+
+    // Admin için tüm seçenekler
+    if (user?.role === 'admin') {
+      return baseOptions;
+    }
+
+    // Support için sınırlı seçenekler
+    if (user?.role === 'support') {
+      return baseOptions.filter(option => 
+        option.value !== STATUS_MAP.CLOSED.value || 
+        (option.value === STATUS_MAP.CLOSED.value && ticket?.status === STATUS_MAP.RESOLVED.value)
+      );
+    }
+
+    // Normal kullanıcılar için sadece çözüldü durumunu kapatabilir
+    if (user?.role === 'user') {
+      return baseOptions.filter(option => 
+        option.value === STATUS_MAP.CLOSED.value && ticket?.status === STATUS_MAP.RESOLVED.value
+      );
+    }
+
+    return [];
+  };
+
+  const getStatusText = (status) => {
+    return STATUS_MAP[status?.toUpperCase()]?.label || status;
+  };
+
+  const getStatusColor = (status) => {
+    return STATUS_MAP[status?.toUpperCase()]?.color || colors.text;
+  };
+
   const handleUpdateStatus = async (newStatus) => {
     try {
       setLoading(true);
-      const result = await ticketService.updateTicketStatus(ticketId, newStatus);
+      
+      // Durum değişikliği için onay
+      const statusConfig = STATUS_MAP[newStatus.toUpperCase()];
+      const confirm = await new Promise((resolve) => {
+        Alert.alert(
+          'Durum Değişikliği',
+          `Destek talebinin durumunu "${statusConfig.label}" olarak değiştirmek istediğinize emin misiniz?`,
+          [
+            { text: 'İptal', onPress: () => resolve(false), style: 'cancel' },
+            { text: 'Evet', onPress: () => resolve(true) }
+          ]
+        );
+      });
+
+      if (!confirm) {
+        setLoading(false);
+        return;
+      }
+
+      const result = await ticketService.updateTicketStatus(ticketId, statusConfig.value);
       
       if (result.success) {
         Alert.alert('Başarılı', 'Destek talebi durumu güncellendi');
-        fetchTicketDetails(); // Detayları yenile
+        await fetchTicketDetails(); // Detayları yenile
       } else {
-        Alert.alert('Hata', result.message);
+        Alert.alert('Hata', result.message || 'Durum güncellenirken bir hata oluştu');
       }
     } catch (error) {
       console.error('Durum güncelleme hatası:', error);
@@ -153,32 +280,53 @@ export default function TicketDetailScreen() {
     }
   };
 
-  const getStatusColor = (status) => {
-    return colors.status[status] || colors.text;
+  const getPriorityText = (priority) => {
+    return PRIORITY_MAP[priority?.toUpperCase()]?.label || priority;
   };
 
   const getPriorityColor = (priority) => {
-    return colors.priority[priority] || colors.text;
+    return PRIORITY_MAP[priority?.toUpperCase()]?.color || colors.text;
   };
 
-  const getStatusText = (status) => {
-    const statusMap = {
-      open: 'Açık',
-      in_progress: 'İşlemde',
-      closed: 'Kapalı',
-      resolved: 'Çözüldü'
-    };
-    return statusMap[status] || status;
+  const getPriorityIcon = (priority) => {
+    return PRIORITY_MAP[priority?.toUpperCase()]?.icon || 'help-circle-outline';
   };
 
-  const getPriorityText = (priority) => {
-    const priorityMap = {
-      low: 'Düşük',
-      medium: 'Orta',
-      high: 'Yüksek',
-      critical: 'Kritik'
-    };
-    return priorityMap[priority] || priority;
+  const handleUpdatePriority = async (newPriority) => {
+    try {
+      setLoading(true);
+      
+      const priorityConfig = PRIORITY_MAP[newPriority.toUpperCase()];
+      const confirm = await new Promise((resolve) => {
+        Alert.alert(
+          'Öncelik Değişikliği',
+          `Destek talebinin önceliğini "${priorityConfig.label}" olarak değiştirmek istediğinize emin misiniz?`,
+          [
+            { text: 'İptal', onPress: () => resolve(false), style: 'cancel' },
+            { text: 'Evet', onPress: () => resolve(true) }
+          ]
+        );
+      });
+
+      if (!confirm) {
+        setLoading(false);
+        return;
+      }
+
+      const result = await ticketService.updateTicketPriority(ticketId, priorityConfig.value);
+      
+      if (result.success) {
+        Alert.alert('Başarılı', 'Destek talebi önceliği güncellendi');
+        await fetchTicketDetails();
+      } else {
+        Alert.alert('Hata', result.message || 'Öncelik güncellenirken bir hata oluştu');
+      }
+    } catch (error) {
+      console.error('Öncelik güncelleme hatası:', error);
+      Alert.alert('Hata', 'Destek talebi önceliği güncellenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Ekipmanları getir
@@ -238,6 +386,147 @@ export default function TicketDetailScreen() {
     }
   };
 
+  const handleRespond = async () => {
+    if (!responseContent.trim()) {
+      Alert.alert('Uyarı', 'Lütfen bir yanıt içeriği girin.');
+      return;
+    }
+
+    try {
+      setSendingResponse(true);
+      const result = await ticketService.respondToTicket(ticketId, responseContent.trim());
+      
+      if (result.success) {
+        setResponseContent('');
+        await fetchTicketDetails(); // Refresh ticket details
+        Alert.alert('Başarılı', 'Yanıtınız başarıyla gönderildi.');
+      } else {
+        Alert.alert('Hata', result.message || 'Yanıt gönderilirken bir hata oluştu.');
+      }
+    } catch (error) {
+      console.error('Yanıt gönderme hatası:', error);
+      Alert.alert('Hata', 'Yanıt gönderilirken bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setSendingResponse(false);
+    }
+  };
+
+  const handleAttachment = async () => {
+    try {
+      const result = await DocumentPicker.pick({
+        type: [DocumentPicker.types.allFiles],
+        copyTo: 'cachesDirectory',
+      });
+
+      setUploadingAttachment(true);
+      const file = {
+        uri: Platform.OS === 'ios' ? result[0].uri.replace('file://', '') : result[0].uri,
+        type: result[0].type,
+        name: result[0].name,
+      };
+
+      await ticketService.addAttachment(ticketId, file);
+      await fetchTicketDetails(); // Refresh ticket details
+      Alert.alert('Başarılı', 'Dosya başarıyla yüklendi.');
+    } catch (error) {
+      if (!DocumentPicker.isCancel(error)) {
+        Alert.alert('Hata', 'Dosya yüklenirken bir hata oluştu.');
+      }
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
+  const renderTimelineItem = (item, index) => {
+    const getIconName = (actionType) => {
+      if (!actionType) return 'info';
+      
+      switch (actionType.toLowerCase()) {
+        case 'ticket_created':
+          return 'add-circle';
+        case 'status_changed':
+          return 'swap-horiz';
+        case 'assigned':
+          return 'person-add';
+        case 'response_added':
+          return 'chat-bubble';
+        case 'equipment_attached':
+          return 'build';
+        case 'equipment_detached':
+          return 'build';
+        case 'support_level_changed':
+          return 'trending-up';
+        default:
+          return 'info';
+      }
+    };
+
+    const getIconColor = (actionType) => {
+      if (!actionType) return '#757575';
+      
+      switch (actionType.toLowerCase()) {
+        case 'ticket_created':
+          return '#4CAF50';
+        case 'status_changed':
+          return '#2196F3';
+        case 'assigned':
+          return '#9C27B0';
+        case 'response_added':
+          return '#FF9800';
+        case 'equipment_attached':
+          return '#795548';
+        case 'equipment_detached':
+          return '#795548';
+        case 'support_level_changed':
+          return '#E91E63';
+        default:
+          return '#757575';
+      }
+    };
+
+    // Eğer item geçersizse boş bir view döndür
+    if (!item) return null;
+
+    return (
+      <View key={item.id || index} style={styles.timelineItem}>
+        <View style={styles.timelineLeft}>
+          <View style={[styles.timelineIcon, { backgroundColor: getIconColor(item.action_type) }]}>
+            <MaterialIcons name={getIconName(item.action_type)} size={20} color="#fff" />
+          </View>
+          {index !== timeline.length - 1 && <View style={styles.timelineLine} />}
+        </View>
+        <View style={styles.timelineContent}>
+          <View style={styles.timelineHeader}>
+            <Text style={styles.timelineUser}>{item.user_name || 'Bilinmeyen Kullanıcı'}</Text>
+            <Text style={styles.timelineDate}>{formatRelativeDate(item.created_at)}</Text>
+          </View>
+          <View style={styles.timelineActionContainer}>
+            <Text style={[styles.timelineAction, { color: getIconColor(item.action_type) }]}>
+              {item.action_type ? item.action_type.replace(/_/g, ' ').toUpperCase() : 'BİLİNMEYEN İŞLEM'}
+            </Text>
+          </View>
+          <Text style={styles.timelineDescription}>{item.description || 'Açıklama bulunmuyor'}</Text>
+          {item.support_level && (
+            <View style={styles.timelineMetaContainer}>
+              <MaterialIcons name="trending-up" size={16} color="#666" />
+              <Text style={styles.timelineMetaText}>
+                Destek Seviyesi: {item.support_level}
+              </Text>
+            </View>
+          )}
+          {item.status && (
+            <View style={styles.timelineMetaContainer}>
+              <MaterialIcons name="info" size={16} color="#666" />
+              <Text style={styles.timelineMetaText}>
+                Durum: {item.status}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -273,9 +562,34 @@ export default function TicketDetailScreen() {
         </View>
 
         <View style={styles.priorityContainer}>
-          <Text style={[styles.priorityText, { color: getPriorityColor(ticket?.priority) }]}>
-            Öncelik: {getPriorityText(ticket?.priority)}
-          </Text>
+          <View style={styles.priorityInfo}>
+            <Ionicons 
+              name={getPriorityIcon(ticket?.priority)} 
+              size={20} 
+              color={getPriorityColor(ticket?.priority)} 
+            />
+            <Text style={[styles.priorityText, { color: getPriorityColor(ticket?.priority) }]}>
+              Öncelik: {getPriorityText(ticket?.priority)}
+            </Text>
+          </View>
+          
+          {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
+            <TouchableOpacity
+              style={styles.priorityButton}
+              onPress={() => {
+                Alert.alert(
+                  'Öncelik Değiştir',
+                  'Yeni öncelik seviyesi seçin',
+                  Object.values(PRIORITY_MAP).map(priority => ({
+                    text: priority.label,
+                    onPress: () => handleUpdatePriority(priority.value)
+                  }))
+                );
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={styles.description}>{ticket?.description}</Text>
@@ -348,48 +662,41 @@ export default function TicketDetailScreen() {
 
       {/* İşlem butonları */}
       <View style={styles.actionsContainer}>
-        {user?.role === 'admin' && ticket?.status !== 'closed' && (
-          <>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.primary }]}
-              onPress={() => setShowAssignModal(true)}
-            >
-              <Ionicons name="person-add-outline" size={20} color={colors.white} />
-              <Text style={styles.actionButtonText}>Atama Yap</Text>
-            </TouchableOpacity>
+        {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.primary }]}
+            onPress={() => setShowAssignModal(true)}
+          >
+            <Ionicons name="person-add-outline" size={20} color={colors.white} />
+            <Text style={styles.actionButtonText}>Atama Yap</Text>
+          </TouchableOpacity>
+        )}
 
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.warning }]}
-              onPress={() => handleUpdateStatus('in_progress')}
-            >
-              <Ionicons name="time-outline" size={20} color={colors.white} />
-              <Text style={styles.actionButtonText}>İşleme Al</Text>
-            </TouchableOpacity>
+        {/* Durum değiştirme butonları */}
+        {getStatusOptions().map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.actionButton,
+              { backgroundColor: option.color },
+              ticket?.status === option.value && styles.disabledButton
+            ]}
+            onPress={() => handleUpdateStatus(option.value)}
+            disabled={ticket?.status === option.value || loading}
+          >
+            <Ionicons name={option.icon} size={20} color={colors.white} />
+            <Text style={styles.actionButtonText}>{option.label}</Text>
+          </TouchableOpacity>
+        ))}
 
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.success }]}
-              onPress={() => handleUpdateStatus('resolved')}
-            >
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.white} />
-              <Text style={styles.actionButtonText}>Çözüldü</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.error }]}
-              onPress={handleCloseTicket}
-            >
-              <Ionicons name="close-circle-outline" size={20} color={colors.white} />
-              <Text style={styles.actionButtonText}>Kapat</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
-              onPress={() => setShowEquipmentModal(true)}
-            >
-              <Ionicons name="hardware-chip-outline" size={20} color={colors.white} />
-              <Text style={styles.actionButtonText}>Ekipman Yönet</Text>
-            </TouchableOpacity>
-          </>
+        {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+            onPress={() => setShowEquipmentModal(true)}
+          >
+            <Ionicons name="hardware-chip-outline" size={20} color={colors.white} />
+            <Text style={styles.actionButtonText}>Ekipman Yönet</Text>
+          </TouchableOpacity>
         )}
       </View>
 
@@ -406,7 +713,7 @@ export default function TicketDetailScreen() {
                   <Text style={styles.equipmentName}>{item.name}</Text>
                   <Text style={styles.equipmentType}>{item.type}</Text>
                 </View>
-                {user?.role === 'admin' && ticket?.status !== 'closed' && (
+                {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
                   <TouchableOpacity
                     style={styles.detachButton}
                     onPress={() => handleDetachEquipment(item.id)}
@@ -527,6 +834,57 @@ export default function TicketDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <View style={styles.responseContainer}>
+        <TextInput
+          style={styles.responseInput}
+          multiline
+          placeholder="Yanıtınızı yazın..."
+          value={responseContent}
+          onChangeText={setResponseContent}
+        />
+        <View style={styles.responseActions}>
+          <TouchableOpacity
+            style={styles.attachmentButton}
+            onPress={handleAttachment}
+            disabled={uploadingAttachment}
+          >
+            <MaterialIcons name="attach-file" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.sendButton}
+            onPress={handleRespond}
+            disabled={sendingResponse}
+          >
+            <Text style={styles.sendButtonText}>
+              {sendingResponse ? 'Gönderiliyor...' : 'Gönder'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {attachments.length > 0 && (
+        <View style={styles.attachmentsContainer}>
+          <Text style={styles.attachmentsTitle}>Ekler</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {attachments.map((attachment) => (
+              <TouchableOpacity
+                key={attachment.id}
+                style={styles.attachmentItem}
+                onPress={() => {/* Handle attachment preview */}}
+              >
+                <MaterialIcons name="insert-drive-file" size={24} color="#007AFF" />
+                <Text style={styles.attachmentName}>{attachment.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.timelineContainer}>
+        <Text style={styles.timelineTitle}>Aktivite Geçmişi</Text>
+        {timeline.map(renderTimelineItem)}
+      </View>
     </ScrollView>
   );
 }
@@ -577,11 +935,25 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   priorityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  priorityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   priorityText: {
     fontSize: 16,
     fontWeight: '500',
+    marginLeft: 8,
+  },
+  priorityButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: colors.background,
   },
   description: {
     fontSize: 16,
@@ -808,5 +1180,149 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     padding: 16,
+  },
+  responseContainer: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  responseInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  responseActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  attachmentButton: {
+    padding: 8,
+  },
+  sendButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  sendButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  attachmentsContainer: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  attachmentsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F8F8',
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  attachmentName: {
+    marginLeft: 8,
+    color: '#007AFF',
+  },
+  timelineContainer: {
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  timelineTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#333',
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  timelineLeft: {
+    width: 40,
+    alignItems: 'center',
+  },
+  timelineIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  timelineLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 4,
+  },
+  timelineContent: {
+    flex: 1,
+    marginLeft: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timelineUser: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  timelineDate: {
+    fontSize: 12,
+    color: '#666',
+  },
+  timelineActionContainer: {
+    marginBottom: 8,
+  },
+  timelineAction: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  timelineDescription: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  timelineMetaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  timelineMetaText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
 });
