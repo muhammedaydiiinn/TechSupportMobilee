@@ -33,7 +33,7 @@ const DepartmentManagementScreen = () => {
   });
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (user?.role !== 'ADMIN') {
       Alert.alert('Yetkisiz Erişim', 'Bu sayfaya erişim yetkiniz bulunmamaktadır.');
       return;
     }

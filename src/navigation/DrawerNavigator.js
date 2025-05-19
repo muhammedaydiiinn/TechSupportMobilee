@@ -36,9 +36,9 @@ const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
   const { logout, user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const isManager = user?.role === 'department_manager';
-  const isSupport = user?.role === 'support';
+  const isAdmin = user?.role === 'ADMIN';
+  const isManager = user?.role === 'DEPARTMENT_MANAGER';
+  const isSupport = user?.role === 'SUPPORT';
   
   // Kullanıcı bilgilerini ve rollerini logla
   console.log('DrawerNavigator içinde kullanıcı bilgileri:', user);

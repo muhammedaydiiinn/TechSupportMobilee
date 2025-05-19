@@ -12,7 +12,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { equipmentService, departmentService } from '../../services/api';
+import { equipmentService, departmentService, userService } from '../../services/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors } from '../../theme/colors';
 import { Card } from '../../components/Card';
@@ -44,7 +44,13 @@ const EquipmentManagementScreen = () => {
     status: 'active',
     notes: '',
     department_id: '',
+    assigned_to: '',
   });
+
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [users, setUsers] = useState([]);
 
   const equipmentTypes = [
     { value: 'computer', label: 'Bilgisayar' },
@@ -54,7 +60,6 @@ const EquipmentManagementScreen = () => {
     { value: 'server', label: 'Sunucu' },
     { value: 'network_device', label: 'Ağ Cihazı' },
     { value: 'mobile_device', label: 'Mobil Cihaz' },
-    { value: 'peripheral', label: 'Çevre Birimi' },
     { value: 'software', label: 'Yazılım' },
     { value: 'other', label: 'Diğer' },
   ];
@@ -67,12 +72,13 @@ const EquipmentManagementScreen = () => {
   ];
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (user?.role !== 'ADMIN') {
       Alert.alert('Yetkisiz Erişim', 'Bu sayfaya erişim yetkiniz bulunmamaktadır.');
       return;
     }
     fetchEquipment();
     fetchDepartments();
+    fetchUsers();
   }, []);
 
   const fetchDepartments = async () => {
@@ -103,6 +109,19 @@ const EquipmentManagementScreen = () => {
       setError('Ekipman verileri alınırken bir hata oluştu');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await userService.getUsers();
+      if (response.success) {
+        setUsers(response.data);
+      } else {
+        console.error('Kullanıcılar alınırken bir hata oluştu:', response.message);
+      }
+    } catch (error) {
+      console.error('Kullanıcı getirme hatası:', error);
     }
   };
 
@@ -204,6 +223,7 @@ const EquipmentManagementScreen = () => {
       status: item.status || 'active',
       notes: item.notes || '',
       department_id: item.department_id || '',
+      assigned_to: item.assigned_to || '',
     });
     setIsEditing(true);
     setShowEquipmentModal(true);
@@ -225,6 +245,7 @@ const EquipmentManagementScreen = () => {
       status: 'active',
       notes: '',
       department_id: '',
+      assigned_to: '',
     });
     setIsEditing(false);
     setSelectedEquipment(null);
@@ -274,6 +295,167 @@ const EquipmentManagementScreen = () => {
     setShowDatePicker(true);
   };
 
+  const handleUpdateEquipmentStatus = async (newStatus) => {
+    if (!selectedEquipment) return;
+
+    try {
+      setLoading(true);
+      const response = await equipmentService.updateEquipmentStatus(selectedEquipment.id, newStatus);
+      
+      if (response.success) {
+        Alert.alert('Başarılı', 'Ekipman durumu başarıyla güncellendi');
+        setShowStatusModal(false);
+        fetchEquipment();
+      } else {
+        Alert.alert('Hata', response.message || 'Ekipman durumu güncellenirken bir hata oluştu');
+      }
+    } catch (error) {
+      console.error('Ekipman durumu güncelleme hatası:', error);
+      Alert.alert('Hata', 'Ekipman durumu güncellenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateEquipmentDepartment = async (newDepartmentId) => {
+    if (!selectedEquipment) return;
+
+    try {
+      setLoading(true);
+      const response = await equipmentService.updateEquipmentDepartment(selectedEquipment.id, newDepartmentId);
+      
+      if (response.success) {
+        Alert.alert('Başarılı', 'Ekipman departmanı başarıyla güncellendi');
+        setShowDepartmentModal(false);
+        fetchEquipment();
+      } else {
+        Alert.alert('Hata', response.message || 'Ekipman departmanı güncellenirken bir hata oluştu');
+      }
+    } catch (error) {
+      console.error('Ekipman departmanı güncelleme hatası:', error);
+      Alert.alert('Hata', 'Ekipman departmanı güncellenirken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAssignEquipment = async (userId) => {
+    if (!selectedEquipment) return;
+
+    try {
+      setLoading(true);
+      const response = await equipmentService.assignEquipment(selectedEquipment.id, userId);
+      
+      if (response.success) {
+        Alert.alert('Başarılı', 'Ekipman başarıyla atandı');
+        setShowAssignModal(false);
+        fetchEquipment();
+      } else {
+        Alert.alert('Hata', response.message || 'Ekipman atanırken bir hata oluştu');
+      }
+    } catch (error) {
+      console.error('Ekipman atama hatası:', error);
+      Alert.alert('Hata', 'Ekipman atanırken bir hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getUserName = (userId) => {
+    const user = users.find(u => u.id === userId);
+    return user ? `${user.first_name} ${user.last_name}` : 'Atanmamış';
+  };
+
+  const renderEquipmentItem = ({ item }) => (
+    <Card style={styles.equipmentCard}>
+      <View style={styles.equipmentInfo}>
+        <View style={styles.equipmentHeader}>
+          <Text style={styles.equipmentName}>{item.name}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+              {getStatusLabel(item.status)}
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.equipmentDetails}>
+          <View style={styles.detailRow}>
+            <Ionicons name="hardware-chip" size={16} color={colors.textLight} />
+            <Text style={styles.equipmentType}>{getTypeLabel(item.equipment_type)}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="business" size={16} color={colors.textLight} />
+            <Text style={styles.equipmentDepartment}>{getDepartmentName(item.department_id)}</Text>
+          </View>
+          
+          <View style={styles.detailRow}>
+            <Ionicons name="person" size={16} color={colors.textLight} />
+            <Text style={styles.equipmentUser}>{getUserName(item.assigned_to)}</Text>
+          </View>
+          
+          {item.serial_number && (
+            <View style={styles.detailRow}>
+              <Ionicons name="barcode" size={16} color={colors.textLight} />
+              <Text style={styles.equipmentSerial}>{item.serial_number}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      
+      <View style={styles.equipmentActions}>
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            setSelectedEquipment(item);
+            setShowStatusModal(true);
+          }}
+        >
+          <Ionicons name="toggle" size={20} color={colors.primary} />
+          <Text style={styles.actionText}>Durum</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            setSelectedEquipment(item);
+            setShowDepartmentModal(true);
+          }}
+        >
+          <Ionicons name="business" size={20} color={colors.primary} />
+          <Text style={styles.actionText}>Departman</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => {
+            setSelectedEquipment(item);
+            setShowAssignModal(true);
+          }}
+        >
+          <Ionicons name="person" size={20} color={colors.primary} />
+          <Text style={styles.actionText}>Kullanıcı</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={() => editEquipment(item)}
+        >
+          <Ionicons name="create" size={20} color={colors.primary} />
+          <Text style={styles.actionText}>Düzenle</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.deleteButton]}
+          onPress={() => confirmDeleteEquipment(item)}
+        >
+          <Ionicons name="trash" size={20} color={colors.error} />
+          <Text style={[styles.actionText, styles.deleteText]}>Sil</Text>
+        </TouchableOpacity>
+      </View>
+    </Card>
+  );
+
   if (loading && equipment.length === 0) {
     return (
       <View style={styles.loadingContainer}>
@@ -309,52 +491,7 @@ const EquipmentManagementScreen = () => {
       <FlatList
         data={equipment}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Card style={styles.equipmentCard}>
-            <View style={styles.equipmentInfo}>
-              <View>
-                <Text style={styles.equipmentName}>{item.name}</Text>
-                <View style={styles.tagsContainer}>
-                  <View style={[styles.typeTag, { backgroundColor: colors.primary + '20' }]}>
-                    <Text style={styles.typeText}>{getTypeLabel(item.equipment_type)}</Text>
-                  </View>
-                  <View style={[styles.statusTag, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-                    <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-                      {getStatusLabel(item.status)}
-                    </Text>
-                  </View>
-                </View>
-                {item.serial_number && (
-                  <Text style={styles.serialNumber}>SN: {item.serial_number}</Text>
-                )}
-                {(item.manufacturer || item.model) && (
-                  <Text style={styles.equipmentDetails}>
-                    {item.manufacturer} {item.model}
-                  </Text>
-                )}
-                {item.department_id && (
-                  <Text style={styles.departmentText}>
-                    Departman: {getDepartmentName(item.department_id)}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.equipmentActions}>
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => editEquipment(item)}
-                >
-                  <Ionicons name="create-outline" size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => confirmDeleteEquipment(item)}
-                >
-                  <Ionicons name="trash-outline" size={20} color={colors.error} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Card>
-        )}
+        renderItem={renderEquipmentItem}
       />
 
       {/* Ekipman Ekleme/Düzenleme Modal */}
@@ -596,6 +733,180 @@ const EquipmentManagementScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Status Update Modal */}
+      <Modal
+        visible={showStatusModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStatusModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ekipman Durumunu Güncelle</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedEquipment ? selectedEquipment.name : ''}
+            </Text>
+            
+            <View style={styles.statusOptions}>
+              {equipmentStatuses.map((status) => (
+                <TouchableOpacity
+                  key={status.value}
+                  style={[
+                    styles.statusOption,
+                    formData.status === status.value && {
+                      backgroundColor: getStatusColor(status.value) + '20',
+                      borderColor: getStatusColor(status.value),
+                    }
+                  ]}
+                  onPress={() => setFormData({ ...formData, status: status.value })}
+                >
+                  <Text style={[
+                    styles.statusOptionText,
+                    formData.status === status.value && { color: getStatusColor(status.value) }
+                  ]}>
+                    {status.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowStatusModal(false)}
+              >
+                <Text style={styles.buttonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleUpdateEquipmentStatus(formData.status)}
+              >
+                <Text style={styles.buttonText}>Güncelle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Department Update Modal */}
+      <Modal
+        visible={showDepartmentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDepartmentModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ekipman Departmanını Güncelle</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedEquipment ? selectedEquipment.name : ''}
+            </Text>
+            
+            <View style={styles.departmentOptions}>
+              {departments.map((dept) => (
+                <TouchableOpacity
+                  key={dept.id}
+                  style={[
+                    styles.departmentOption,
+                    formData.department_id === dept.id && styles.departmentOptionSelected
+                  ]}
+                  onPress={() => setFormData({ ...formData, department_id: dept.id })}
+                >
+                  <Text style={[
+                    styles.departmentOptionText,
+                    formData.department_id === dept.id && styles.departmentOptionTextSelected
+                  ]}>
+                    {dept.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowDepartmentModal(false)}
+              >
+                <Text style={styles.buttonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleUpdateEquipmentDepartment(formData.department_id)}
+              >
+                <Text style={styles.buttonText}>Güncelle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Assign Equipment Modal */}
+      <Modal
+        visible={showAssignModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAssignModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Ekipman Kullanıcıya Ata</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedEquipment ? selectedEquipment.name : ''}
+            </Text>
+            
+            <View style={styles.userOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.userOption,
+                  formData.assigned_to === '' && styles.userOptionSelected
+                ]}
+                onPress={() => setFormData({ ...formData, assigned_to: '' })}
+              >
+                <Text style={[
+                  styles.userOptionText,
+                  formData.assigned_to === '' && styles.userOptionTextSelected
+                ]}>
+                  Atanmamış
+                </Text>
+              </TouchableOpacity>
+              
+              {users.map((user) => (
+                <TouchableOpacity
+                  key={user.id}
+                  style={[
+                    styles.userOption,
+                    formData.assigned_to === user.id && styles.userOptionSelected
+                  ]}
+                  onPress={() => setFormData({ ...formData, assigned_to: user.id })}
+                >
+                  <Text style={[
+                    styles.userOptionText,
+                    formData.assigned_to === user.id && styles.userOptionTextSelected
+                  ]}>
+                    {user.first_name} {user.last_name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowAssignModal(false)}
+              >
+                <Text style={styles.buttonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleAssignEquipment(formData.assigned_to)}
+              >
+                <Text style={styles.buttonText}>Ata</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -649,60 +960,77 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   equipmentInfo: {
+    marginBottom: 15,
+  },
+  equipmentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   equipmentName: {
     fontSize: 18,
     fontWeight: '500',
     color: colors.text,
-    marginBottom: 5,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    marginBottom: 5,
-  },
-  typeTag: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginRight: 5,
-  },
-  typeText: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statusTag: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  serialNumber: {
-    fontSize: 12,
-    color: colors.textLight,
-    marginBottom: 2,
+    flex: 1,
+    marginRight: 10,
   },
   equipmentDetails: {
+    marginTop: 5,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  equipmentType: {
     fontSize: 14,
     color: colors.textLight,
+    marginLeft: 8,
   },
-  departmentText: {
+  equipmentDepartment: {
     fontSize: 14,
-    color: colors.secondary,
-    marginTop: 5,
+    color: colors.textLight,
+    marginLeft: 8,
+  },
+  equipmentUser: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginLeft: 8,
+  },
+  equipmentSerial: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginLeft: 8,
   },
   equipmentActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 10,
   },
   actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 8,
-    marginLeft: 5,
+    borderRadius: 5,
+    backgroundColor: colors.background,
+    marginBottom: 5,
+    minWidth: '18%',
+    justifyContent: 'center',
+  },
+  actionText: {
+    color: colors.primary,
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  deleteButton: {
+    backgroundColor: colors.error + '10',
+  },
+  deleteText: {
+    color: colors.error,
   },
   modalContainer: {
     flex: 1,
@@ -867,6 +1195,88 @@ const styles = StyleSheet.create({
   },
   departmentButtonTextSelected: {
     color: colors.white,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: colors.text,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 15,
+  },
+  buttonText: {
+    color: colors.white,
+    fontWeight: '500',
+  },
+  statusOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+  },
+  statusOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 10,
+    marginBottom: 10,
+    minWidth: '45%',
+  },
+  statusOptionText: {
+    fontSize: 14,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  departmentOptions: {
+    marginTop: 10,
+  },
+  departmentOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 10,
+  },
+  departmentOptionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  departmentOptionText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  departmentOptionTextSelected: {
+    color: colors.white,
+    fontWeight: '500',
+  },
+  userOptions: {
+    marginTop: 10,
+    maxHeight: 300,
+  },
+  userOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 10,
+  },
+  userOptionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  userOptionText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  userOptionTextSelected: {
+    color: colors.white,
+    fontWeight: '500',
   },
 });
 

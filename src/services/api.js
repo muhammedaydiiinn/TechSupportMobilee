@@ -69,7 +69,7 @@ api.interceptors.request.use(
       
       return config;
     } catch (error) {
-      console.error('Token alınırken hata:', error);
+     // console.error('Token alınırken hata:', error);
       return Promise.reject(error);
     }
   },
@@ -112,12 +112,8 @@ export const authService = {
     try {
       // API'nin beklediği formata uygun olarak form-urlencoded verisi gönderelim
       const formData = new URLSearchParams();
-      formData.append('grant_type', '');
       formData.append('username', email);
       formData.append('password', password);
-      formData.append('scope', '');
-      formData.append('client_id', '');
-      formData.append('client_secret', '');
 
       console.log('Login isteği gönderiliyor:', {
         email: email,
@@ -128,10 +124,13 @@ export const authService = {
         client_secret: ''
       });
 
+      console.log('Form verisi:', formData);
+      // API_URL'i kullanarak istek yapalım
+      console.log('Login isteği URL:', `${API_URL}/auth/login`);
       const response = await axios.post(`${API_URL}/auth/login`, formData.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          Accept: 'application/json',
+          Accept: 'application/x-www-form-urlencoded',
         },
         timeout: 15000,
       });
@@ -738,7 +737,61 @@ export const userService = {
         message: error.response?.data?.detail || 'Kullanıcı silinirken bir hata oluştu'
       };
     }
-  }
+  },
+
+  updateUserRole: async (userId, role) => {
+    try {
+      console.log('Kullanıcı rolü güncelleme isteği:', { userId, role });
+      const response = await api.put(`/users/${userId}/role`, { role });
+      console.log('Kullanıcı rolü güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı rolü güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı rolü güncellenirken bir hata oluştu'
+      };
+    }
+  },
+
+  updateUserDepartment: async (userId, departmentId) => {
+    try {
+      console.log('Kullanıcı departmanı güncelleme isteği:', { userId, departmentId });
+      const response = await api.put(`/users/${userId}/department`, { department_id: departmentId });
+      console.log('Kullanıcı departmanı güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı departmanı güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı departmanı güncellenirken bir hata oluştu'
+      };
+    }
+  },
+
+  updateUserStatus: async (userId, status) => {
+    try {
+      console.log('Kullanıcı durumu güncelleme isteği:', { userId, status });
+      const response = await api.put(`/users/${userId}/status`, { status });
+      console.log('Kullanıcı durumu güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Kullanıcı durumu güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Kullanıcı durumu güncellenirken bir hata oluştu'
+      };
+    }
+  },
 };
 
 export const departmentService = {
@@ -952,6 +1005,60 @@ export const equipmentService = {
       return {
         success: false,
         message: error.response?.data?.detail || 'Ekipman silinirken bir hata oluştu'
+      };
+    }
+  },
+
+  updateEquipmentStatus: async (equipmentId, status) => {
+    try {
+      console.log('Ekipman durumu güncelleme isteği:', { equipmentId, status });
+      const response = await api.put(`/equipment/${equipmentId}/status`, { status });
+      console.log('Ekipman durumu güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman durumu güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman durumu güncellenirken bir hata oluştu'
+      };
+    }
+  },
+
+  updateEquipmentDepartment: async (equipmentId, departmentId) => {
+    try {
+      console.log('Ekipman departmanı güncelleme isteği:', { equipmentId, departmentId });
+      const response = await api.put(`/equipment/${equipmentId}/department`, { department_id: departmentId });
+      console.log('Ekipman departmanı güncelleme başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman departmanı güncelleme hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman departmanı güncellenirken bir hata oluştu'
+      };
+    }
+  },
+
+  assignEquipment: async (equipmentId, userId) => {
+    try {
+      console.log('Ekipman atama isteği:', { equipmentId, userId });
+      const response = await api.put(`/equipment/${equipmentId}/assign`, { user_id: userId });
+      console.log('Ekipman atama başarılı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ekipman atama hatası:', error.response?.data || error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ekipman atanırken bir hata oluştu'
       };
     }
   },

@@ -13,9 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CustomDrawerContent = ({ navigation, onLogout }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const isManager = user?.role === 'department_manager';
-  const isSupport = user?.role === 'support';
+  const isAdmin = user?.role === 'ADMIN';
+  // Kullanıcı rolünü kontrol et
+  const isManager = user?.role === 'DEPARTMENT_MANAGER';
+  const isSupport = user?.role === 'SUPPORT';
 
   useEffect(() => {
     console.log('CustomDrawerContent içinde kullanıcı rolü:', user?.role);

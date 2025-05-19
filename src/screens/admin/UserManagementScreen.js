@@ -40,21 +40,28 @@ const UserManagementScreen = () => {
     password: '',
     first_name: '',
     last_name: '',
-    role: 'user',
+    role: 'USER',
     department_id: '',
     api_access: false,
+    status: 'active',
   });
 
   const userRoles = [
-    { value: 'admin', label: 'Yönetici' },
-    { value: 'support', label: 'Destek Ekibi' },
-    { value: 'user', label: 'Kullanıcı' },
-    { value: 'department_manager', label: 'Departman Yöneticisi' },
-    { value: 'department_employee', label: 'Departman Çalışanı' },
+    { value: 'ADMIN', label: 'Yönetici' },
+    { value: 'SUPPORT', label: 'Destek Ekibi' },
+    { value: 'USER', label: 'Kullanıcı' },
+    { value: 'DEPARTMENT_MANAGER', label: 'Departman Yöneticisi' },
+    { value: 'DEPARTMENT_EMPLOYEE', label: 'Departman Çalışanı' },
+  ];
+
+  const userStatuses = [
+    { value: 'ACTIVE', label: 'Aktif' },
+    { value: 'INACTIVE', label: 'Pasif' },
+    { value: 'SUSPENDED', label: 'Askıya Alınmış' },
   ];
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (user?.role !== 'ADMIN') {
       Alert.alert('Yetkisiz Erişim', 'Bu sayfaya erişim yetkiniz bulunmamaktadır.');
       return;
     }
@@ -217,6 +224,7 @@ const UserManagementScreen = () => {
       role: user.role || 'user',
       department_id: user.department_id || '',
       api_access: user.api_access || false,
+      status: user.status || 'active',
     });
     setIsEditing(true);
     setShowUserModal(true);
@@ -236,6 +244,7 @@ const UserManagementScreen = () => {
       role: 'user',
       department_id: '',
       api_access: false,
+      status: 'active',
     });
     setIsEditing(false);
     setSelectedUser(null);
@@ -249,6 +258,24 @@ const UserManagementScreen = () => {
   const getRoleLabel = (roleValue) => {
     const role = userRoles.find(r => r.value === roleValue);
     return role ? role.label : roleValue;
+  };
+
+  const getStatusLabel = (status) => {
+    const statusObj = userStatuses.find(s => s.value === status);
+    return statusObj ? statusObj.label : status;
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'active':
+        return colors.success;
+      case 'inactive':
+        return colors.warning;
+      case 'suspended':
+        return colors.error;
+      default:
+        return colors.text;
+    }
   };
 
   if (loading && users.length === 0) {
@@ -319,34 +346,61 @@ const UserManagementScreen = () => {
         renderItem={({ item }) => (
           <Card style={styles.userCard}>
             <View style={styles.userInfo}>
-              <View>
+              <View style={styles.userHeader}>
                 <Text style={styles.userName}>{item.first_name} {item.last_name}</Text>
-                <Text style={styles.userEmail}>{item.email}</Text>
-                <View style={styles.tagContainer}>
-                  <View style={styles.roleTag}>
-                    <Text style={styles.roleText}>{getRoleLabel(item.role)}</Text>
-                  </View>
-                  {item.department_id && (
-                    <View style={styles.departmentTag}>
-                      <Text style={styles.departmentText}>{getDepartmentName(item.department_id)}</Text>
-                    </View>
-                  )}
+                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                  <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
                 </View>
               </View>
-              <View style={styles.userActions}>
-                <TouchableOpacity 
-                  style={styles.editButton}
-                  onPress={() => editUser(item)}
-                >
-                  <Ionicons name="create-outline" size={20} color={colors.primary} />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.deleteButton}
-                  onPress={() => confirmDeleteUser(item)}
-                >
-                  <Ionicons name="trash-outline" size={20} color={colors.error} />
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.userEmail}>{item.email}</Text>
+              <Text style={styles.userRole}>Rol: {getRoleLabel(item.role)}</Text>
+              <Text style={styles.userDepartment}>Departman: {getDepartmentName(item.department_id)}</Text>
+            </View>
+            <View style={styles.userActions}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => {
+                  setSelectedUser(item);
+                  setShowRoleModal(true);
+                }}
+              >
+                <Ionicons name="person" size={20} color={colors.primary} />
+                <Text style={styles.actionText}>Rol Değiştir</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => {
+                  setSelectedUser(item);
+                  setShowDepartmentModal(true);
+                }}
+              >
+                <Ionicons name="business" size={20} color={colors.primary} />
+                <Text style={styles.actionText}>Departman Değiştir</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => {
+                  setSelectedUser(item);
+                  setShowStatusModal(true);
+                }}
+              >
+                <Ionicons name="toggle" size={20} color={colors.primary} />
+                <Text style={styles.actionText}>Durum Değiştir</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => editUser(item)}
+              >
+                <Ionicons name="create" size={20} color={colors.primary} />
+                <Text style={styles.actionText}>Düzenle</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.actionButton, styles.deleteButton]}
+                onPress={() => confirmDeleteUser(item)}
+              >
+                <Ionicons name="trash" size={20} color={colors.error} />
+                <Text style={[styles.actionText, styles.deleteText]}>Sil</Text>
+              </TouchableOpacity>
             </View>
           </Card>
         )}
@@ -672,6 +726,133 @@ const UserManagementScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Role Update Modal */}
+      <Modal
+        visible={showRoleModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRoleModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Kullanıcı Rolünü Güncelle</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : ''}
+            </Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value })}
+                style={styles.picker}
+              >
+                {userRoles.map((role) => (
+                  <Picker.Item key={role.value} label={role.label} value={role.value} />
+                ))}
+              </Picker>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowRoleModal(false)}
+              >
+                <Text style={styles.buttonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleUpdateUserRole(formData.role)}
+              >
+                <Text style={styles.buttonText}>Güncelle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Department Update Modal */}
+      <Modal
+        visible={showDepartmentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDepartmentModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Kullanıcı Departmanını Güncelle</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : ''}
+            </Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.department_id}
+                onValueChange={(value) => setFormData({ ...formData, department_id: value })}
+                style={styles.picker}
+              >
+                <Picker.Item label="Departman Seçin" value="" />
+                {departments.map((dept) => (
+                  <Picker.Item key={dept.id} label={dept.name} value={dept.id} />
+                ))}
+              </Picker>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowDepartmentModal(false)}
+              >
+                <Text style={styles.buttonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleUpdateUserDepartment(formData.department_id)}
+              >
+                <Text style={styles.buttonText}>Güncelle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Status Update Modal */}
+      <Modal
+        visible={showStatusModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStatusModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Kullanıcı Durumunu Güncelle</Text>
+            <Text style={styles.modalSubtitle}>
+              {selectedUser ? `${selectedUser.first_name} ${selectedUser.last_name}` : ''}
+            </Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={formData.status}
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
+                style={styles.picker}
+              >
+                {userStatuses.map((status) => (
+                  <Picker.Item key={status.value} label={status.label} value={status.value} />
+                ))}
+              </Picker>
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowStatusModal(false)}
+              >
+                <Text style={styles.buttonText}>İptal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => handleUpdateUserStatus(formData.status)}
+              >
+                <Text style={styles.buttonText}>Güncelle</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -964,6 +1145,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   roleButtonTextSelected: {
+    color: colors.white,
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  statusText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  userRole: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 5,
+  },
+  userDepartment: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 5,
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 5,
+  },
+  actionText: {
+    color: colors.primary,
+    fontSize: 14,
+  },
+  deleteText: {
+    color: colors.error,
+    fontWeight: 'bold',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: colors.text,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 15,
+  },
+  buttonText: {
     color: colors.white,
     fontWeight: '500',
   },
