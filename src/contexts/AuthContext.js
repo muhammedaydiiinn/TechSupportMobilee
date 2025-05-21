@@ -18,33 +18,33 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const token = await TokenService.getToken();
-      console.log('Token kontrolü:', token ? 'Token bulundu' : 'Token bulunamadı');
       
       if (token) {
         try {
-          const decoded = jwtDecode(token);
-          console.log('Çözümlenen token:', decoded);
-          
           // Kullanıcı bilgilerini API'den al
           const userDetails = await userService.getCurrentUser();
-          console.log('Kullanıcı detayları:', userDetails);
           
-          setUser({
-            id: decoded.sub,
-            email: userDetails.email,
-            role: userDetails.role,
-            department_id: userDetails.department_id,
-            department_name: userDetails.department_name,
-            first_name: userDetails.first_name,
-            last_name: userDetails.last_name
-          });
-        } catch (decodeError) {
-          console.error('Token çözümleme hatası:', decodeError);
+          if (userDetails) {
+            setUser({
+              id: userDetails.id,
+              email: userDetails.email,
+              role: userDetails.role,
+              department_id: userDetails.department_id,
+              department_name: userDetails.department_name,
+              first_name: userDetails.first_name,
+              last_name: userDetails.last_name
+            });
+          } else {
+            // Kullanıcı bilgileri alınamadıysa tokenları temizle
+            await TokenService.clearAllTokens();
+          }
+        } catch (error) {
+          // API hatası durumunda tokenları temizle
           await TokenService.clearAllTokens();
         }
       }
     } catch (error) {
-      console.error('Oturum kontrolü hatası:', error);
+      // Genel hata durumunda tokenları temizle
       await TokenService.clearAllTokens();
     } finally {
       setLoading(false);
@@ -91,26 +91,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      setLoading(true);
-      const response = await authService.logout();
-      
-      if (response.success) {
-        await TokenService.clearAllTokens();
-        setUser(null);
-        setError(null);
-        // Navigasyonu sıfırla ve Login ekranına yönlendir
-        reset('Login');
-        return { success: true };
-      } else {
-        setError(response.message);
-        return { success: false, message: response.message };
-      }
+      await TokenService.clearAllTokens();
+      setUser(null);
+      setError(null);
+      // Navigasyonu sıfırla ve Login ekranına yönlendir
+      reset('Login');
+      return { success: true };
     } catch (error) {
       console.error('Çıkış hatası:', error);
-      setError('Çıkış yapılırken bir hata oluştu');
       return { success: false, message: 'Çıkış yapılırken bir hata oluştu' };
-    } finally {
-      setLoading(false);
     }
   };
 

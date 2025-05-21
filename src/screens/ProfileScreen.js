@@ -76,15 +76,41 @@ const ProfileScreen = () => {
   const handleUpdateProfile = async () => {
     try {
       setLoading(true);
-      const response = await authService.updateUser(user.id, editForm);
+
+      // Şifre değişikliği kontrolü
+      const updateData = { ...editForm };
+      
+      // Eğer yeni şifre girilmişse, mevcut şifre de gerekli
+      if (updateData.password && !updateData.old_password) {
+        Alert.alert('Hata', 'Şifre değiştirmek için mevcut şifrenizi girmelisiniz.');
+        setLoading(false);
+        return;
+      }
+
+      // Eğer şifre değişikliği yoksa, şifre alanlarını kaldır
+      if (!updateData.password) {
+        delete updateData.password;
+        delete updateData.old_password;
+      }
+
+      // API'ye gönderilecek veriyi hazırla
+      const response = await authService.updateUser(user.id, updateData);
+      
       if (response.success) {
         Alert.alert('Başarılı', 'Profil bilgileriniz güncellendi.');
         setShowEditModal(false);
+        // Form alanlarını temizle
+        setEditForm({
+          ...editForm,
+          password: '',
+          old_password: ''
+        });
         fetchUserProfile(); // Profili yeniden yükle
       } else {
         Alert.alert('Hata', response.message || 'Profil güncellenirken bir hata oluştu.');
       }
     } catch (error) {
+      console.error('Profil güncelleme hatası:', error);
       Alert.alert('Hata', 'Profil güncellenirken bir hata oluştu.');
     } finally {
       setLoading(false);
