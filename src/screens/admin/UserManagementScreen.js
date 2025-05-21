@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { userService, departmentService } from '../../services/api';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors } from '../../theme/colors';
@@ -27,6 +28,9 @@ const UserManagementScreen = () => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   
@@ -261,20 +265,28 @@ const UserManagementScreen = () => {
   };
 
   const getStatusLabel = (status) => {
-    const statusObj = userStatuses.find(s => s.value === status);
-    return statusObj ? statusObj.label : status;
+    switch (status?.toUpperCase()) {
+      case 'ACTIVE':
+        return 'Aktif';
+      case 'INACTIVE':
+        return 'Pasif';
+      case 'SUSPENDED':
+        return 'Askıya Alınmış';
+      default:
+        return status || 'Bilinmiyor';
+    }
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
+    switch (status?.toUpperCase()) {
+      case 'ACTIVE':
         return colors.success;
-      case 'inactive':
+      case 'INACTIVE':
         return colors.warning;
-      case 'suspended':
+      case 'SUSPENDED':
         return colors.error;
       default:
-        return colors.text;
+        return colors.textLight;
     }
   };
 
@@ -297,15 +309,8 @@ const UserManagementScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Kullanıcı Yönetimi</Text>
         <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            style={styles.filterButton}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <Ionicons name="filter" size={22} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity 
+        <TouchableOpacity 
             style={styles.addButton}
             onPress={() => {
               resetForm();
@@ -314,6 +319,12 @@ const UserManagementScreen = () => {
           >
             <Ionicons name="add" size={24} color={colors.white} />
             <Text style={styles.addButtonText}>Kullanıcı Ekle</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setShowFilterModal(true)}
+          >
+            <Ionicons name="filter" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -710,7 +721,7 @@ const UserManagementScreen = () => {
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.secondary }]}
+                style={[styles.modalButton, styles.saveButton]}
                 onPress={clearFilters}
               >
                 <Text style={styles.modalButtonText}>Temizle</Text>
@@ -872,6 +883,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   errorText: {
     color: colors.error,
@@ -882,136 +894,183 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 20,
+    paddingHorizontal: 5,
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
   },
   filterButton: {
-    padding: 10,
-    marginRight: 10,
+    padding: 12,
     backgroundColor: colors.white,
-    borderRadius: 5,
+    borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.18,
-    shadowRadius: 1.00,
-    elevation: 1,
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
-    padding: 10,
-    borderRadius: 5,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 3,
   },
   addButtonText: {
     color: colors.white,
-    marginLeft: 5,
-    fontWeight: '500',
+    marginLeft: 8,
+    fontWeight: '600',
+    fontSize: 16,
   },
   infoContainer: {
-    marginBottom: 10,
+    marginBottom: 15,
+    paddingHorizontal: 5,
   },
   infoText: {
     color: colors.textLight,
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '500',
   },
   activeFiltersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    marginTop: 5,
+    marginTop: 8,
+    gap: 8,
   },
   activeFiltersText: {
     color: colors.textLight,
     fontSize: 14,
-    marginRight: 5,
   },
   filterTag: {
     backgroundColor: colors.primary + '15',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginRight: 5,
-    marginBottom: 5,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
   },
   filterTagText: {
     color: colors.primary,
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   clearFiltersText: {
     color: colors.error,
     fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 5,
+    fontWeight: '600',
+    marginLeft: 8,
   },
   userCard: {
-    marginBottom: 10,
-    padding: 15,
+    marginBottom: 15,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   userInfo: {
+    marginBottom: 15,
+  },
+  userHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   userName: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.text,
   },
   userEmail: {
     fontSize: 14,
     color: colors.textLight,
-    marginBottom: 5,
+    marginBottom: 6,
   },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  userRole: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 6,
   },
-  roleTag: {
-    backgroundColor: colors.primary + '20',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginRight: 5,
+  userDepartment: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginBottom: 6,
   },
-  roleText: {
-    color: colors.primary,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: colors.success,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+  },
+  statusText: {
+    color: colors.white,
     fontSize: 12,
-    fontWeight: '500',
-  },
-  departmentTag: {
-    backgroundColor: colors.secondary + '20',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-  },
-  departmentText: {
-    color: colors.secondary,
-    fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   userActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 15,
   },
-  editButton: {
-    padding: 8,
-    marginLeft: 5,
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  actionText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
   },
   deleteButton: {
-    padding: 8,
-    marginLeft: 5,
+    borderColor: colors.error,
+  },
+  deleteText: {
+    color: colors.error,
   },
   modalContainer: {
     flex: 1,
@@ -1021,67 +1080,67 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderRadius: 10,
-    padding: 20,
+    borderRadius: 16,
+    padding: 24,
     width: '90%',
     maxHeight: '80%',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 20,
     color: colors.text,
   },
+  modalSubtitle: {
+    fontSize: 16,
+    color: colors.textLight,
+    marginBottom: 20,
+  },
   formGroup: {
-    marginBottom: 15,
+    marginBottom: 20,
   },
   formRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 15,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 5,
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
     color: colors.text,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 5,
-    padding: 10,
+    borderRadius: 10,
+    padding: 12,
     backgroundColor: colors.white,
+    fontSize: 15,
   },
   pickerContainer: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: colors.white,
-    justifyContent: 'center',
-    height: 50,
     overflow: 'hidden',
-    marginTop: 2,
   },
   picker: {
     height: 50,
     width: '100%',
     color: colors.text,
   },
-  pickerItem: {
-    fontSize: 16,
-    color: colors.text,
-  },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 5,
   },
   checkbox: {
     width: 24,
     height: 24,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 4,
-    marginRight: 10,
+    borderRadius: 6,
+    marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1090,51 +1149,53 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   checkboxLabel: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.text,
+    fontWeight: '500',
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 15,
+    marginTop: 24,
+    gap: 12,
   },
   modalButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-    marginLeft: 10,
-    minWidth: 80,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    minWidth: 100,
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: colors.textLight,
+    backgroundColor: colors.textLight + '20',
   },
   saveButton: {
     backgroundColor: colors.primary,
   },
   modalButtonText: {
     color: colors.white,
-    fontWeight: '500',
+    fontWeight: '600',
+    fontSize: 16,
   },
   confirmText: {
     fontSize: 16,
     color: colors.text,
-    marginBottom: 15,
+    marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 24,
   },
   roleButtonsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 5,
+    gap: 10,
+    marginTop: 8,
   },
   roleButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    marginRight: 10,
-    marginBottom: 10,
   },
   roleButtonSelected: {
     backgroundColor: colors.primary,
@@ -1143,63 +1204,21 @@ const styles = StyleSheet.create({
   roleButtonText: {
     color: colors.text,
     fontSize: 14,
+    fontWeight: '500',
   },
   roleButtonTextSelected: {
     color: colors.white,
-    fontWeight: '500',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  statusText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  userHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  userRole: {
-    fontSize: 14,
-    color: colors.textLight,
-    marginBottom: 5,
-  },
-  userDepartment: {
-    fontSize: 14,
-    color: colors.textLight,
-    marginBottom: 5,
-  },
-  actionButton: {
-    padding: 8,
-    marginLeft: 5,
-  },
-  actionText: {
-    color: colors.primary,
-    fontSize: 14,
-  },
-  deleteText: {
-    color: colors.error,
-    fontWeight: 'bold',
-  },
-  modalSubtitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: colors.text,
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 15,
+    marginTop: 24,
+    gap: 12,
   },
   buttonText: {
     color: colors.white,
-    fontWeight: '500',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 
