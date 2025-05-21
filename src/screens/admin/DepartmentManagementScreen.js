@@ -195,7 +195,6 @@ const DepartmentManagementScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Departman Yönetimi</Text>
         <TouchableOpacity 
           style={styles.addButton}
           onPress={() => {

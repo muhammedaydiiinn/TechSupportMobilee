@@ -2,6 +2,7 @@ import axios from 'axios';
 import TokenService from './TokenService';
 import { API_URL } from '@env';
 import { reset } from '../navigation/RootNavigation';
+import { Alert } from 'react-native';
 
 console.log('Current API_URL:', API_URL);
 
@@ -99,13 +100,47 @@ api.interceptors.response.use(
     });
 
     if (error.response?.status === 401) {
-      console.log('401 hatası - Yetkisiz erişim');
-    
+      console.log('401 hatası - Oturum süresi doldu');
+      
+      // Token'ı temizle
+      await TokenService.clearAllTokens();
+      
+      // Kullanıcıya bildirim göster
+      Alert.alert(
+        'Oturum Süresi Doldu',
+        'Güvenliğiniz için oturumunuz sonlandırıldı. Lütfen tekrar giriş yapın.',
+        [
+          {
+            text: 'Tamam',
+            onPress: () => {
+              // Ana sayfaya yönlendir
+              reset('Login');
+            }
+          }
+        ],
+        { cancelable: false }
+      );
     }
     
     return Promise.reject(error);
   }
 );
+
+// Sabit değerler
+const TICKET_TYPES = {
+  TECHNICAL: 'TECHNICAL',
+  HARDWARE: 'HARDWARE',
+  SOFTWARE: 'SOFTWARE',
+  NETWORK: 'NETWORK',
+  OTHER: 'OTHER'
+};
+
+const TICKET_PRIORITIES = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  CRITICAL: 'CRITICAL'
+};
 
 export const authService = {
   login: async (email, password) => {
@@ -169,7 +204,7 @@ export const authService = {
 
   getProfile: async () => {
     try {
-      const response = await api.get('/auth/profile');
+      const response = await api.get('/auth/me');
       return { success: true, data: response.data };
     } catch (error) {
       console.error('Profile fetch error:', error.response?.data || error);
@@ -293,8 +328,17 @@ export const ticketService = {
   createTicket: async (ticketData) => {
     try {
       console.log('Destek talebi oluşturma isteği:', ticketData);
-      const response = await api.post('/tickets/', ticketData, {
-        timeout: 30000, // Timeout süresini 30 saniyeye çıkaralım
+      
+      // API'nin beklediği formata dönüştür
+      const formattedData = {
+        ...ticketData,
+        category: ticketData.category?.toUpperCase() || TICKET_TYPES.OTHER,
+        ticket_type: ticketData.ticket_type?.toUpperCase() || TICKET_TYPES.OTHER,
+        priority: ticketData.priority?.toUpperCase() || TICKET_PRIORITIES.MEDIUM
+      };
+      
+      const response = await api.post('/tickets/', formattedData, {
+        timeout: 30000,
       });
       console.log('Destek talebi oluşturma başarılı:', response.data);
       return {
@@ -304,7 +348,6 @@ export const ticketService = {
     } catch (error) {
       console.error('Destek talebi oluşturma hatası:', error);
       
-      // Timeout hatası için özel mesaj
       if (error.code === 'ECONNABORTED') {
         return {
           success: false,
@@ -313,10 +356,25 @@ export const ticketService = {
         };
       }
 
-      // Diğer hata durumları için
-      const errorMessage = error.response?.data?.detail || 
-                         error.response?.data?.message || 
-                         'Destek talebi oluşturulurken bir hata oluştu';
+      let errorMessage = 'Destek talebi oluşturulurken bir hata oluştu';
+      
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => {
+            if (err.type === 'enum') {
+              if (err.loc[1] === 'category' || err.loc[1] === 'ticket_type') {
+                return 'Geçersiz destek talebi kategorisi. Lütfen listeden bir kategori seçin.';
+              }
+              if (err.loc[1] === 'priority') {
+                return 'Geçersiz öncelik seviyesi. Lütfen listeden bir öncelik seçin.';
+              }
+            }
+            return err.msg;
+          }).join('\n');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      }
       
       return {
         success: false,
