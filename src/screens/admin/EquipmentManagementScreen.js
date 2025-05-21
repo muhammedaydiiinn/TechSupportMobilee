@@ -36,12 +36,12 @@ const EquipmentManagementScreen = () => {
   
   const [formData, setFormData] = useState({
     name: '',
-    equipment_type: 'computer',
+    equipment_type: 'COMPUTER',
     serial_number: '',
     manufacturer: '',
     model: '',
     purchase_date: '',
-    status: 'active',
+    status: 'ACTIVE',
     notes: '',
     department_id: '',
     assigned_to: '',
@@ -53,22 +53,20 @@ const EquipmentManagementScreen = () => {
   const [users, setUsers] = useState([]);
 
   const equipmentTypes = [
-    { value: 'computer', label: 'Bilgisayar' },
-    { value: 'laptop', label: 'Laptop' },
-    { value: 'monitor', label: 'Monitör' },
-    { value: 'printer', label: 'Yazıcı' },
-    { value: 'server', label: 'Sunucu' },
-    { value: 'network_device', label: 'Ağ Cihazı' },
-    { value: 'mobile_device', label: 'Mobil Cihaz' },
-    { value: 'software', label: 'Yazılım' },
-    { value: 'other', label: 'Diğer' },
+    { value: 'COMPUTER', label: 'Bilgisayar' },
+    { value: 'LAPTOP', label: 'Laptop' },
+    { value: 'PRINTER', label: 'Yazıcı' },
+    { value: 'NETWORK', label: 'Ağ Cihazı' },
+    { value: 'SERVER', label: 'Sunucu' },
+    { value: 'MOBILE', label: 'Mobil Cihaz' },
+    { value: 'OTHER', label: 'Diğer' },
   ];
 
   const equipmentStatuses = [
-    { value: 'active', label: 'Aktif' },
-    { value: 'inactive', label: 'Pasif' },
-    { value: 'maintenance', label: 'Bakımda' },
-    { value: 'disposed', label: 'Kullanım Dışı' },
+    { value: 'ACTIVE', label: 'Aktif' },
+    { value: 'INACTIVE', label: 'Pasif' },
+    { value: 'MAINTENANCE', label: 'Bakımda' },
+    { value: 'RETIRED', label: 'Kullanım Dışı' },
   ];
 
   useEffect(() => {
@@ -170,7 +168,15 @@ const EquipmentManagementScreen = () => {
 
     try {
       setLoading(true);
-      const response = await equipmentService.updateEquipment(selectedEquipment.id, formData);
+      
+      // API'ye gönderilecek veriyi hazırla
+      const requestData = {
+        ...formData,
+        assigned_to_id: formData.assigned_to || null, // Boş string yerine null gönder
+        notes: formData.notes || ''  // notes alanını description olarak gönder
+      };
+      
+      const response = await equipmentService.updateEquipment(selectedEquipment.id, requestData);
       
       if (response.success) {
         Alert.alert('Başarılı', 'Ekipman başarıyla güncellendi');
@@ -215,12 +221,12 @@ const EquipmentManagementScreen = () => {
     setSelectedEquipment(item);
     setFormData({
       name: item.name,
-      equipment_type: item.equipment_type || 'computer',
+      equipment_type: item.equipment_type || 'COMPUTER',
       serial_number: item.serial_number || '',
       manufacturer: item.manufacturer || '',
       model: item.model || '',
       purchase_date: item.purchase_date || '',
-      status: item.status || 'active',
+      status: item.status || 'ACTIVE',
       notes: item.notes || '',
       department_id: item.department_id || '',
       assigned_to: item.assigned_to || '',
@@ -237,12 +243,12 @@ const EquipmentManagementScreen = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      equipment_type: 'computer',
+      equipment_type: 'COMPUTER',
       serial_number: '',
       manufacturer: '',
       model: '',
       purchase_date: '',
-      status: 'active',
+      status: 'ACTIVE',
       notes: '',
       department_id: '',
       assigned_to: '',
@@ -256,17 +262,22 @@ const EquipmentManagementScreen = () => {
     return type ? type.label : typeValue;
   };
 
-  const getStatusLabel = (statusValue) => {
-    const status = equipmentStatuses.find(s => s.value === statusValue);
-    return status ? status.label : statusValue;
+  const getStatusLabel = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'ACTIVE': return 'Aktif';
+      case 'INACTIVE': return 'Pasif';
+      case 'MAINTENANCE': return 'Bakımda';
+      case 'RETIRED': return 'Kullanım Dışı';
+      default: return status || 'Bilinmiyor';
+    }
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return colors.success;
-      case 'inactive': return colors.textLight;
-      case 'maintenance': return colors.warning;
-      case 'disposed': return colors.error;
+    switch (status?.toUpperCase()) {
+      case 'ACTIVE': return colors.success;
+      case 'INACTIVE': return colors.textLight;
+      case 'MAINTENANCE': return colors.warning;
+      case 'RETIRED': return colors.error;
       default: return colors.text;
     }
   };
@@ -344,7 +355,7 @@ const EquipmentManagementScreen = () => {
 
     try {
       setLoading(true);
-      const response = await equipmentService.assignEquipment(selectedEquipment.id, userId);
+      const response = await equipmentService.assignEquipment(selectedEquipment.id, userId || null);
       
       if (response.success) {
         Alert.alert('Başarılı', 'Ekipman başarıyla atandı');
@@ -388,12 +399,7 @@ const EquipmentManagementScreen = () => {
             <Ionicons name="business" size={16} color={colors.textLight} />
             <Text style={styles.equipmentDepartment}>{getDepartmentName(item.department_id)}</Text>
           </View>
-          
-          <View style={styles.detailRow}>
-            <Ionicons name="person" size={16} color={colors.textLight} />
-            <Text style={styles.equipmentUser}>{getUserName(item.assigned_to)}</Text>
-          </View>
-          
+        
           {item.serial_number && (
             <View style={styles.detailRow}>
               <Ionicons name="barcode" size={16} color={colors.textLight} />
@@ -426,16 +432,7 @@ const EquipmentManagementScreen = () => {
           <Text style={styles.actionText}>Departman</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={() => {
-            setSelectedEquipment(item);
-            setShowAssignModal(true);
-          }}
-        >
-          <Ionicons name="person" size={20} color={colors.primary} />
-          <Text style={styles.actionText}>Kullanıcı</Text>
-        </TouchableOpacity>
+  
         
         <TouchableOpacity 
           style={styles.actionButton}
@@ -859,13 +856,13 @@ const EquipmentManagementScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.userOption,
-                  formData.assigned_to === '' && styles.userOptionSelected
+                  !formData.assigned_to && styles.userOptionSelected
                 ]}
-                onPress={() => setFormData({ ...formData, assigned_to: '' })}
+                onPress={() => setFormData({ ...formData, assigned_to: null })}
               >
                 <Text style={[
                   styles.userOptionText,
-                  formData.assigned_to === '' && styles.userOptionTextSelected
+                  !formData.assigned_to && styles.userOptionTextSelected
                 ]}>
                   Atanmamış
                 </Text>

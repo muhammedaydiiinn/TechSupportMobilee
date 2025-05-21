@@ -972,8 +972,16 @@ export const equipmentService = {
       
       // API'ye gönderilecek veriyi hazırla
       const requestData = {
-        ...equipmentData,
-        description: equipmentData.notes || ''  // notes alanını description olarak gönder
+        name: equipmentData.name,
+        description: equipmentData.notes || '',
+        equipment_type: equipmentData.equipment_type,
+        status: equipmentData.status,
+        serial_number: equipmentData.serial_number,
+        model: equipmentData.model,
+        manufacturer: equipmentData.manufacturer,
+        purchase_date: equipmentData.purchase_date,
+        department_id: equipmentData.department_id,
+        assigned_to_id: equipmentData.assigned_to
       };
       
       const response = await api.put(`/equipment/${equipmentId}`, requestData);
@@ -1012,7 +1020,7 @@ export const equipmentService = {
   updateEquipmentStatus: async (equipmentId, status) => {
     try {
       console.log('Ekipman durumu güncelleme isteği:', { equipmentId, status });
-      const response = await api.put(`/equipment/${equipmentId}/status`, { status });
+      const response = await api.put(`/equipment/${equipmentId}`, { status });
       console.log('Ekipman durumu güncelleme başarılı:', response.data);
       return {
         success: true,
@@ -1030,7 +1038,7 @@ export const equipmentService = {
   updateEquipmentDepartment: async (equipmentId, departmentId) => {
     try {
       console.log('Ekipman departmanı güncelleme isteği:', { equipmentId, departmentId });
-      const response = await api.put(`/equipment/${equipmentId}/department`, { department_id: departmentId });
+      const response = await api.put(`/equipment/${equipmentId}`, { department_id: departmentId });
       console.log('Ekipman departmanı güncelleme başarılı:', response.data);
       return {
         success: true,
@@ -1048,7 +1056,11 @@ export const equipmentService = {
   assignEquipment: async (equipmentId, userId) => {
     try {
       console.log('Ekipman atama isteği:', { equipmentId, userId });
-      const response = await api.put(`/equipment/${equipmentId}/assign`, { user_id: userId });
+      
+      // Eğer userId boş veya null ise, assigned_to_id'yi null olarak gönder
+      const requestData = userId ? { assigned_to_id: userId } : { assigned_to_id: null };
+      
+      const response = await api.put(`/equipment/${equipmentId}`, requestData);
       console.log('Ekipman atama başarılı:', response.data);
       return {
         success: true,
