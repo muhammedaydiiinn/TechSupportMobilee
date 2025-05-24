@@ -1,9 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, StyleSheet, View } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { COLORS } from '../../constants/colors';
 import { FONTS, SPACING, RADIUS, getShadow } from '../../constants/theme';
-import LinearGradient from 'react-native-linear-gradient';
-import theme from '../../constants/theme';
 
 /**
  * Reusable button component with loading state
@@ -35,7 +33,7 @@ const Button = ({
         return styles.outlineButton;
       case 'primary':
       default:
-        return null; // For primary we use gradient now
+        return styles.primaryButton;
     }
   };
 
@@ -51,39 +49,6 @@ const Button = ({
     }
   };
 
-  // For primary buttons, use a gradient background
-  if (variant === 'primary') {
-    return (
-      <TouchableOpacity
-        style={[
-          styles.button,
-          (loading || disabled) && styles.buttonDisabled,
-          style
-        ]}
-        onPress={onPress}
-        disabled={loading || disabled}
-        {...restProps}
-      >
-        <LinearGradient
-          colors={[theme.colors.primary, theme.colors.primaryDark]}
-          style={styles.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          {loading ? (
-            <ActivityIndicator 
-              color={COLORS.white} 
-              size="small"
-            />
-          ) : (
-            <Text style={[getTextStyle(), textStyle]}>{title}</Text>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
-
-  // For other button types
   return (
     <TouchableOpacity
       style={[
@@ -110,20 +75,14 @@ const Button = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: RADIUS.s,
-    ...getShadow('small'),
-  },
-  gradient: {
-    paddingVertical: SPACING.m,
+    padding: SPACING.m,
     borderRadius: RADIUS.s,
     alignItems: 'center',
     justifyContent: 'center',
+    ...getShadow('small'),
   },
   primaryButton: {
     backgroundColor: COLORS.primary,
-    padding: SPACING.m,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   primaryButtonText: {
     color: COLORS.white,
@@ -132,9 +91,6 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: COLORS.secondary,
-    padding: SPACING.m,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   secondaryButtonText: {
     color: COLORS.white,
@@ -145,9 +101,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: COLORS.primary,
-    padding: SPACING.m,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   outlineButtonText: {
     color: COLORS.primary,
