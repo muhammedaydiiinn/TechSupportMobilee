@@ -23,28 +23,36 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatDate, formatRelativeDate } from '../../utils/dateUtils';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import DocumentPicker from 'react-native-document-picker';
+import LinearGradient from 'react-native-linear-gradient';
+import theme, { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 
 const STATUS_MAP = {
   OPEN: {
-    value: 'open',
+    value: 'OPEN',
     label: 'Açık',
     icon: 'open-outline',
     color: colors.info
   },
   IN_PROGRESS: {
-    value: 'in_progress',
+    value: 'IN_PROGRESS',
     label: 'İşlemde',
     icon: 'time-outline',
     color: colors.warning
   },
+  WAITING: {
+    value: 'WAITING',
+    label: 'Beklemede',
+    icon: 'hourglass-outline',
+    color: colors.secondary
+  },
   RESOLVED: {
-    value: 'resolved',
+    value: 'RESOLVED',
     label: 'Çözüldü',
     icon: 'checkmark-circle-outline',
     color: colors.success
   },
   CLOSED: {
-    value: 'closed',
+    value: 'CLOSED',
     label: 'Kapalı',
     icon: 'close-circle-outline',
     color: colors.error
@@ -109,6 +117,9 @@ export default function TicketDetailScreen() {
   const [sendingResponse, setSendingResponse] = useState(false);
   const [attachments, setAttachments] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [statusNote, setStatusNote] = useState('');
 
   useEffect(() => {
     fetchTicketDetails();
@@ -192,7 +203,7 @@ export default function TicketDetailScreen() {
   const handleCloseTicket = async () => {
     try {
       setLoading(true);
-      const result = await ticketService.updateTicketStatus(ticketId, 'closed');
+      const result = await ticketService.updateTicketStatus(ticketId, 'CLOSED');
       
       if (result.success) {
         Alert.alert('Başarılı', 'Destek talebi kapatıldı');
@@ -212,12 +223,12 @@ export default function TicketDetailScreen() {
     const baseOptions = Object.values(STATUS_MAP);
 
     // Admin için tüm seçenekler
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'ADMIN') {
       return baseOptions;
     }
 
     // Support için sınırlı seçenekler
-    if (user?.role === 'support') {
+    if (user?.role === 'support' || user?.role === 'SUPPORT') {
       return baseOptions.filter(option => 
         option.value !== STATUS_MAP.CLOSED.value || 
         (option.value === STATUS_MAP.CLOSED.value && ticket?.status === STATUS_MAP.RESOLVED.value)
@@ -225,7 +236,7 @@ export default function TicketDetailScreen() {
     }
 
     // Normal kullanıcılar için sadece çözüldü durumunu kapatabilir
-    if (user?.role === 'user') {
+    if (user?.role === 'user' || user?.role === 'USER') {
       return baseOptions.filter(option => 
         option.value === STATUS_MAP.CLOSED.value && ticket?.status === STATUS_MAP.RESOLVED.value
       );
@@ -246,28 +257,19 @@ export default function TicketDetailScreen() {
     try {
       setLoading(true);
       
-      // Durum değişikliği için onay
+      // Status değerini büyük harfe çevirip göndermemiz gerekiyor
+      // API 'OPEN', 'IN_PROGRESS', 'WAITING', 'RESOLVED' veya 'CLOSED' bekliyor
       const statusConfig = STATUS_MAP[newStatus.toUpperCase()];
-      const confirm = await new Promise((resolve) => {
-        Alert.alert(
-          'Durum Değişikliği',
-          `Destek talebinin durumunu "${statusConfig.label}" olarak değiştirmek istediğinize emin misiniz?`,
-          [
-            { text: 'İptal', onPress: () => resolve(false), style: 'cancel' },
-            { text: 'Evet', onPress: () => resolve(true) }
-          ]
-        );
-      });
-
-      if (!confirm) {
-        setLoading(false);
-        return;
-      }
-
-      const result = await ticketService.updateTicketStatus(ticketId, statusConfig.value);
+      const statusValue = statusConfig.value; // Artık değerler büyük harfle
+      
+      console.log('Gönderilen durum:', statusValue);
+      
+      const result = await ticketService.updateTicketStatus(ticketId, statusValue);
       
       if (result.success) {
         Alert.alert('Başarılı', 'Destek talebi durumu güncellendi');
+        setShowStatusModal(false);
+        setStatusNote('');
         await fetchTicketDetails(); // Detayları yenile
       } else {
         Alert.alert('Hata', result.message || 'Durum güncellenirken bir hata oluştu');
@@ -527,6 +529,125 @@ export default function TicketDetailScreen() {
     );
   };
 
+  // Arayüzde durumun görünümünü render eden fonksiyon
+  const renderStatusSection = () => {
+    if (!ticket) return null;
+    
+    const isAdminOrSupport = user?.role === 'admin' || user?.role === 'ADMIN' || 
+                             user?.role === 'support' || user?.role === 'SUPPORT';
+    
+    return (
+      <Card style={styles.sectionCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Durum</Text>
+          {isAdminOrSupport && (
+            <TouchableOpacity 
+              onPress={() => setShowStatusModal(true)}
+              style={styles.editButton}
+            >
+              <Ionicons name="create-outline" size={20} color={colors.primary} />
+              <Text style={styles.editButtonText}>Düzenle</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        <View style={styles.statusContainer}>
+          <View 
+            style={[
+              styles.statusBadge, 
+              { backgroundColor: getStatusColor(ticket.status) }
+            ]}
+          >
+            <Ionicons 
+              name={STATUS_MAP[ticket.status?.toUpperCase()]?.icon || 'help-circle-outline'} 
+              size={16} 
+              color={colors.white} 
+            />
+            <Text style={styles.statusText}>
+              {getStatusText(ticket.status)}
+            </Text>
+          </View>
+        </View>
+      </Card>
+    );
+  };
+
+  // Durum düzenleme modalı
+  const renderStatusModal = () => {
+    return (
+      <Modal
+        visible={showStatusModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStatusModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={[theme.colors.primary, theme.colors.primaryDark]}
+              style={styles.modalHeader}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.modalTitle}>Durum Güncelle</Text>
+              <TouchableOpacity 
+                onPress={() => setShowStatusModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color={COLORS.white} />
+              </TouchableOpacity>
+            </LinearGradient>
+            
+            <View style={styles.modalBody}>
+              <Text style={styles.modalSubtitle}>Yeni durumu seçin</Text>
+              
+              <View style={styles.statusOptions}>
+                {getStatusOptions().map((status) => (
+                  <TouchableOpacity
+                    key={status.value}
+                    style={[
+                      styles.statusOption,
+                      { borderColor: status.color }
+                    ]}
+                    onPress={() => handleUpdateStatus(status.value)}
+                  >
+                    <LinearGradient
+                      colors={[status.color, status.color]}
+                      style={styles.statusIconContainer}
+                    >
+                      <Ionicons 
+                        name={status.icon} 
+                        size={24} 
+                        color={COLORS.white} 
+                      />
+                    </LinearGradient>
+                    <Text style={styles.statusOptionText}>{status.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Not ekleyin (isteğe bağlı)"
+                value={statusNote}
+                onChangeText={setStatusNote}
+                multiline
+                maxLength={200}
+              />
+              
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowStatusModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>İptal</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -552,207 +673,169 @@ export default function TicketDetailScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <Card style={styles.headerCard}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{ticket?.title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket?.status) }]}>
-            <Text style={styles.statusText}>{getStatusText(ticket?.status)}</Text>
+    <View style={styles.container}>
+      <ScrollView>
+        <Card style={styles.headerCard}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{ticket?.title}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket?.status) }]}>
+              <Text style={styles.statusText}>{getStatusText(ticket?.status)}</Text>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.priorityContainer}>
-          <View style={styles.priorityInfo}>
-            <Ionicons 
-              name={getPriorityIcon(ticket?.priority)} 
-              size={20} 
-              color={getPriorityColor(ticket?.priority)} 
-            />
-            <Text style={[styles.priorityText, { color: getPriorityColor(ticket?.priority) }]}>
-              Öncelik: {getPriorityText(ticket?.priority)}
-            </Text>
+          <View style={styles.priorityContainer}>
+            <View style={styles.priorityInfo}>
+              <Ionicons 
+                name={getPriorityIcon(ticket?.priority)} 
+                size={20} 
+                color={getPriorityColor(ticket?.priority)} 
+              />
+              <Text style={[styles.priorityText, { color: getPriorityColor(ticket?.priority) }]}>
+                Öncelik: {getPriorityText(ticket?.priority)}
+              </Text>
+            </View>
+            
+            {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
+              <TouchableOpacity
+                style={styles.priorityButton}
+                onPress={() => {
+                  Alert.alert(
+                    'Öncelik Değiştir',
+                    'Yeni öncelik seviyesi seçin',
+                    Object.values(PRIORITY_MAP).map(priority => ({
+                      text: priority.label,
+                      onPress: () => handleUpdatePriority(priority.value)
+                    }))
+                  );
+                }}
+              >
+                <Ionicons name="create-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <Text style={styles.description}>{ticket?.description}</Text>
+
+          <View style={styles.detailsContainer}>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={20} color={colors.textLight} />
+              <Text style={styles.detailText}>
+                Oluşturulma: {new Date(ticket?.created_at).toLocaleDateString('tr-TR')}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Ionicons name="time-outline" size={20} color={colors.textLight} />
+              <Text style={styles.detailText}>
+                Son Güncelleme: {new Date(ticket?.updated_at).toLocaleDateString('tr-TR')}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Ionicons name="person-outline" size={20} color={colors.textLight} />
+              <Text style={styles.detailText}>
+                Oluşturan: {createdBy?.data ? `${createdBy.data.first_name} ${createdBy.data.last_name}` : 'Belirtilmemiş'}
+              </Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Ionicons name="people-outline" size={20} color={colors.textLight} />
+              <Text style={styles.detailText}>
+                Atanan: {assignedTo?.data ? `${assignedTo.data.first_name} ${assignedTo.data.last_name}` : 'Atanmamış'}
+              </Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* AI Responses Section */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="chatbubble-ellipses" size={24} color={colors.primary} />
+            <Text style={styles.sectionTitle}>AI Analizleri ve Önerileri</Text>
           </View>
           
+          {loadingAI ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : aiResponses.length > 0 ? (
+            aiResponses.map((response, index) => (
+              <View key={index} style={styles.aiResponseContainer}>
+                <View style={styles.aiResponseHeader}>
+                  <Ionicons name="analytics" size={20} color={colors.primary} />
+                  <Text style={styles.aiResponseTitle}>
+                    {response.type === 'analysis' ? 'Analiz' : 'Öneri'}
+                  </Text>
+                  <Text style={styles.aiResponseDate}>
+                    {new Date(response.created_at).toLocaleString('tr-TR')}
+                  </Text>
+                </View>
+                <Text style={styles.aiResponseContent}>{response.content}</Text>
+                {response.confidence && (
+                  <View style={styles.confidenceContainer}>
+                    <Text style={styles.confidenceLabel}>Güven Oranı:</Text>
+                    <Text style={styles.confidenceValue}>{response.confidence}%</Text>
+                  </View>
+                )}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noDataText}>Henüz AI analizi bulunmuyor</Text>
+          )}
+        </Card>
+
+        {/* İşlem butonları */}
+        <View style={styles.actionsContainer}>
           {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
             <TouchableOpacity
-              style={styles.priorityButton}
-              onPress={() => {
-                Alert.alert(
-                  'Öncelik Değiştir',
-                  'Yeni öncelik seviyesi seçin',
-                  Object.values(PRIORITY_MAP).map(priority => ({
-                    text: priority.label,
-                    onPress: () => handleUpdatePriority(priority.value)
-                  }))
-                );
-              }}
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={() => setShowAssignModal(true)}
             >
-              <Ionicons name="create-outline" size={20} color={colors.primary} />
+              <Ionicons name="person-add-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>Atama Yap</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Durum değiştirme butonları */}
+          {getStatusOptions().map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={[
+                styles.actionButton,
+                { backgroundColor: option.color },
+                ticket?.status === option.value && styles.disabledButton
+              ]}
+              onPress={() => handleUpdateStatus(option.value)}
+              disabled={ticket?.status === option.value || loading}
+            >
+              <Ionicons name={option.icon} size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>{option.label}</Text>
+            </TouchableOpacity>
+          ))}
+
+          {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.secondary }]}
+              onPress={() => setShowEquipmentModal(true)}
+            >
+              <Ionicons name="hardware-chip-outline" size={20} color={colors.white} />
+              <Text style={styles.actionButtonText}>Ekipman Yönet</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <Text style={styles.description}>{ticket?.description}</Text>
-
-        <View style={styles.detailsContainer}>
-          <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={20} color={colors.textLight} />
-            <Text style={styles.detailText}>
-              Oluşturulma: {new Date(ticket?.created_at).toLocaleDateString('tr-TR')}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="time-outline" size={20} color={colors.textLight} />
-            <Text style={styles.detailText}>
-              Son Güncelleme: {new Date(ticket?.updated_at).toLocaleDateString('tr-TR')}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="person-outline" size={20} color={colors.textLight} />
-            <Text style={styles.detailText}>
-              Oluşturan: {createdBy?.data ? `${createdBy.data.first_name} ${createdBy.data.last_name}` : 'Belirtilmemiş'}
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="people-outline" size={20} color={colors.textLight} />
-            <Text style={styles.detailText}>
-              Atanan: {assignedTo?.data ? `${assignedTo.data.first_name} ${assignedTo.data.last_name}` : 'Atanmamış'}
-            </Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* AI Responses Section */}
-      <Card style={styles.sectionCard}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="chatbubble-ellipses" size={24} color={colors.primary} />
-          <Text style={styles.sectionTitle}>AI Analizleri ve Önerileri</Text>
-        </View>
-        
-        {loadingAI ? (
-          <ActivityIndicator size="small" color={colors.primary} />
-        ) : aiResponses.length > 0 ? (
-          aiResponses.map((response, index) => (
-            <View key={index} style={styles.aiResponseContainer}>
-              <View style={styles.aiResponseHeader}>
-                <Ionicons name="analytics" size={20} color={colors.primary} />
-                <Text style={styles.aiResponseTitle}>
-                  {response.type === 'analysis' ? 'Analiz' : 'Öneri'}
-                </Text>
-                <Text style={styles.aiResponseDate}>
-                  {new Date(response.created_at).toLocaleString('tr-TR')}
-                </Text>
-              </View>
-              <Text style={styles.aiResponseContent}>{response.content}</Text>
-              {response.confidence && (
-                <View style={styles.confidenceContainer}>
-                  <Text style={styles.confidenceLabel}>Güven Oranı:</Text>
-                  <Text style={styles.confidenceValue}>{response.confidence}%</Text>
-                </View>
-              )}
-            </View>
-          ))
-        ) : (
-          <Text style={styles.noDataText}>Henüz AI analizi bulunmuyor</Text>
-        )}
-      </Card>
-
-      {/* İşlem butonları */}
-      <View style={styles.actionsContainer}>
-        {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.primary }]}
-            onPress={() => setShowAssignModal(true)}
-          >
-            <Ionicons name="person-add-outline" size={20} color={colors.white} />
-            <Text style={styles.actionButtonText}>Atama Yap</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Durum değiştirme butonları */}
-        {getStatusOptions().map((option) => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.actionButton,
-              { backgroundColor: option.color },
-              ticket?.status === option.value && styles.disabledButton
-            ]}
-            onPress={() => handleUpdateStatus(option.value)}
-            disabled={ticket?.status === option.value || loading}
-          >
-            <Ionicons name={option.icon} size={20} color={colors.white} />
-            <Text style={styles.actionButtonText}>{option.label}</Text>
-          </TouchableOpacity>
-        ))}
-
-        {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.secondary }]}
-            onPress={() => setShowEquipmentModal(true)}
-          >
-            <Ionicons name="hardware-chip-outline" size={20} color={colors.white} />
-            <Text style={styles.actionButtonText}>Ekipman Yönet</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Ekipman Listesi */}
-      {ticketEquipments.length > 0 && (
-        <Card style={styles.equipmentCard}>
-          <Text style={styles.sectionTitle}>İlişkili Ekipmanlar</Text>
-          <FlatList
-            data={ticketEquipments}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View style={styles.equipmentItem}>
-                <View style={styles.equipmentInfo}>
-                  <Text style={styles.equipmentName}>{item.name}</Text>
-                  <Text style={styles.equipmentType}>{item.type}</Text>
-                </View>
-                {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
-                  <TouchableOpacity
-                    style={styles.detachButton}
-                    onPress={() => handleDetachEquipment(item.id)}
-                    disabled={loadingEquipment}
-                  >
-                    {loadingEquipment ? (
-                      <ActivityIndicator size="small" color={colors.error} />
-                    ) : (
-                      <Ionicons name="trash-outline" size={20} color={colors.error} />
-                    )}
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          />
-        </Card>
-      )}
-
-      {/* Ekipman Modal */}
-      <Modal
-        visible={showEquipmentModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowEquipmentModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Ekipman Yönetimi</Text>
-            
-            <Text style={styles.modalSubtitle}>Bağlı Ekipmanlar</Text>
-            {ticketEquipments.length === 0 ? (
-              <Text style={styles.emptyMessage}>Bu destek talebine bağlı ekipman bulunmamaktadır.</Text>
-            ) : (
-              <FlatList
-                data={ticketEquipments}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <View style={styles.equipmentItem}>
+        {/* Ekipman Listesi */}
+        {ticketEquipments.length > 0 && (
+          <Card style={styles.equipmentCard}>
+            <Text style={styles.sectionTitle}>İlişkili Ekipmanlar</Text>
+            <FlatList
+              data={ticketEquipments}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.equipmentItem}>
+                  <View style={styles.equipmentInfo}>
                     <Text style={styles.equipmentName}>{item.name}</Text>
+                    <Text style={styles.equipmentType}>{item.type}</Text>
+                  </View>
+                  {user?.role === 'admin' && ticket?.status !== STATUS_MAP.CLOSED.value && (
                     <TouchableOpacity
                       style={styles.detachButton}
                       onPress={() => handleDetachEquipment(item.id)}
@@ -761,131 +844,174 @@ export default function TicketDetailScreen() {
                       {loadingEquipment ? (
                         <ActivityIndicator size="small" color={colors.error} />
                       ) : (
-                        <Text style={styles.detachText}>Bağlantıyı Kaldır</Text>
+                        <Ionicons name="trash-outline" size={20} color={colors.error} />
                       )}
                     </TouchableOpacity>
-                  </View>
-                )}
-                style={styles.equipmentList}
-              />
-            )}
-            
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowEquipmentModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Kapat</Text>
-              </TouchableOpacity>
+                  )}
+                </View>
+              )}
+            />
+          </Card>
+        )}
+
+        {/* Ekipman Modal */}
+        <Modal
+          visible={showEquipmentModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowEquipmentModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Ekipman Yönetimi</Text>
+              
+              <Text style={styles.modalSubtitle}>Bağlı Ekipmanlar</Text>
+              {ticketEquipments.length === 0 ? (
+                <Text style={styles.emptyMessage}>Bu destek talebine bağlı ekipman bulunmamaktadır.</Text>
+              ) : (
+                <FlatList
+                  data={ticketEquipments}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <View style={styles.equipmentItem}>
+                      <Text style={styles.equipmentName}>{item.name}</Text>
+                      <TouchableOpacity
+                        style={styles.detachButton}
+                        onPress={() => handleDetachEquipment(item.id)}
+                        disabled={loadingEquipment}
+                      >
+                        {loadingEquipment ? (
+                          <ActivityIndicator size="small" color={colors.error} />
+                        ) : (
+                          <Text style={styles.detachText}>Bağlantıyı Kaldır</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  style={styles.equipmentList}
+                />
+              )}
+              
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowEquipmentModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>Kapat</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* Atama Modal */}
-      <Modal
-        visible={showAssignModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAssignModal(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Destek Talebi Atama</Text>
-            
-            <View style={styles.userList}>
-              {users.map((user) => (
+        {/* Atama Modal */}
+        <Modal
+          visible={showAssignModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowAssignModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Destek Talebi Atama</Text>
+              
+              <View style={styles.userList}>
+                {users.map((user) => (
+                  <TouchableOpacity
+                    key={user.id}
+                    style={[
+                      styles.userItem,
+                      selectedUser?.id === user.id && styles.selectedUserItem
+                    ]}
+                    onPress={() => setSelectedUser(user)}
+                  >
+                    <Text style={styles.userName}>
+                      {user.first_name} {user.last_name}
+                    </Text>
+                    <Text style={styles.userEmail}>{user.email}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.modalActions}>
                 <TouchableOpacity
-                  key={user.id}
-                  style={[
-                    styles.userItem,
-                    selectedUser?.id === user.id && styles.selectedUserItem
-                  ]}
-                  onPress={() => setSelectedUser(user)}
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowAssignModal(false)}
                 >
-                  <Text style={styles.userName}>
-                    {user.first_name} {user.last_name}
-                  </Text>
-                  <Text style={styles.userEmail}>{user.email}</Text>
+                  <Text style={styles.modalButtonText}>İptal</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.assignButton]}
+                  onPress={handleAssignTicket}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color={colors.white} />
+                  ) : (
+                    <Text style={styles.modalButtonText}>Ata</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <View style={styles.responseContainer}>
+          <TextInput
+            style={styles.responseInput}
+            multiline
+            placeholder="Yanıtınızı yazın..."
+            value={responseContent}
+            onChangeText={setResponseContent}
+          />
+          <View style={styles.responseActions}>
+            <TouchableOpacity
+              style={styles.attachmentButton}
+              onPress={handleAttachment}
+              disabled={uploadingAttachment}
+            >
+              <MaterialIcons name="attach-file" size={24} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sendButton}
+              onPress={handleRespond}
+              disabled={sendingResponse}
+            >
+              <Text style={styles.sendButtonText}>
+                {sendingResponse ? 'Gönderiliyor...' : 'Gönder'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {attachments.length > 0 && (
+          <View style={styles.attachmentsContainer}>
+            <Text style={styles.attachmentsTitle}>Ekler</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {attachments.map((attachment) => (
+                <TouchableOpacity
+                  key={attachment.id}
+                  style={styles.attachmentItem}
+                  onPress={() => {/* Handle attachment preview */}}
+                >
+                  <MaterialIcons name="insert-drive-file" size={24} color="#007AFF" />
+                  <Text style={styles.attachmentName}>{attachment.name}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowAssignModal(false)}
-              >
-                <Text style={styles.modalButtonText}>İptal</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.assignButton]}
-                onPress={handleAssignTicket}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.white} />
-                ) : (
-                  <Text style={styles.modalButtonText}>Ata</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
-        </View>
-      </Modal>
+        )}
 
-      <View style={styles.responseContainer}>
-        <TextInput
-          style={styles.responseInput}
-          multiline
-          placeholder="Yanıtınızı yazın..."
-          value={responseContent}
-          onChangeText={setResponseContent}
-        />
-        <View style={styles.responseActions}>
-          <TouchableOpacity
-            style={styles.attachmentButton}
-            onPress={handleAttachment}
-            disabled={uploadingAttachment}
-          >
-            <MaterialIcons name="attach-file" size={24} color="#007AFF" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.sendButton}
-            onPress={handleRespond}
-            disabled={sendingResponse}
-          >
-            <Text style={styles.sendButtonText}>
-              {sendingResponse ? 'Gönderiliyor...' : 'Gönder'}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.timelineContainer}>
+          <Text style={styles.timelineTitle}>Aktivite Geçmişi</Text>
+          {timeline.map(renderTimelineItem)}
         </View>
-      </View>
-
-      {attachments.length > 0 && (
-        <View style={styles.attachmentsContainer}>
-          <Text style={styles.attachmentsTitle}>Ekler</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {attachments.map((attachment) => (
-              <TouchableOpacity
-                key={attachment.id}
-                style={styles.attachmentItem}
-                onPress={() => {/* Handle attachment preview */}}
-              >
-                <MaterialIcons name="insert-drive-file" size={24} color="#007AFF" />
-                <Text style={styles.attachmentName}>{attachment.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      <View style={styles.timelineContainer}>
-        <Text style={styles.timelineTitle}>Aktivite Geçmişi</Text>
-        {timeline.map(renderTimelineItem)}
-      </View>
-    </ScrollView>
+      </ScrollView>
+      
+      {/* Durum değiştirme modalı */}
+      {renderStatusModal()}
+    </View>
   );
 }
 
@@ -1324,5 +1450,81 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  modalHeader: {
+    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  statusOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  statusOption: {
+    width: '48%',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  statusIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  statusOptionText: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: colors.text,
+  },
+  statusContainer: {
+    marginTop: 10,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
+  },
+  statusText: {
+    color: colors.white,
+    fontWeight: '600',
+    marginLeft: 5,
+  },
+  sectionCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: colors.primary,
+    marginLeft: 5,
+    fontWeight: '500',
   },
 });

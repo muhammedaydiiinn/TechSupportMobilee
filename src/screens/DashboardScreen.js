@@ -19,25 +19,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const STATUS_MAP = {
   OPEN: {
-    value: 'open',
+    value: 'OPEN',
     label: 'Açık',
     icon: 'open-outline',
     color: colors.info
   },
   IN_PROGRESS: {
-    value: 'in_progress',
+    value: 'IN_PROGRESS',
     label: 'İşlemde',
     icon: 'time-outline',
     color: colors.warning
   },
+  WAITING: {
+    value: 'WAITING',
+    label: 'Beklemede',
+    icon: 'hourglass-outline',
+    color: colors.secondary
+  },
   RESOLVED: {
-    value: 'resolved',
+    value: 'RESOLVED',
     label: 'Çözüldü',
     icon: 'checkmark-circle-outline',
     color: colors.success
   },
   CLOSED: {
-    value: 'closed',
+    value: 'CLOSED',
     label: 'Kapalı',
     icon: 'close-circle-outline',
     color: colors.error
@@ -80,6 +86,7 @@ const DashboardScreen = ({ navigation }) => {
     total: 0,
     open: 0,
     inProgress: 0,
+    waiting: 0,
     resolved: 0,
     closed: 0
   });
@@ -101,6 +108,7 @@ const DashboardScreen = ({ navigation }) => {
         total: ticketsData.length,
         open: ticketsData.filter(t => t.status === STATUS_MAP.OPEN.value).length,
         inProgress: ticketsData.filter(t => t.status === STATUS_MAP.IN_PROGRESS.value).length,
+        waiting: ticketsData.filter(t => t.status === STATUS_MAP.WAITING.value).length,
         resolved: ticketsData.filter(t => t.status === STATUS_MAP.RESOLVED.value).length,
         closed: ticketsData.filter(t => t.status === STATUS_MAP.CLOSED.value).length
       };
@@ -149,7 +157,7 @@ const DashboardScreen = ({ navigation }) => {
   return (
     <ScrollView style={styles.scrollView}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.first_name || 'Kullanıcı'}</Text>
+        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.first_name || 'Kullanıcı'} {user?.last_name || 'Soyad'}</Text>
       </View>
 
       <View style={styles.statsContainer}>
@@ -166,6 +174,11 @@ const DashboardScreen = ({ navigation }) => {
         <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.IN_PROGRESS.color, borderLeftWidth: 4 }]}>
           <Text style={[styles.statNumber, { color: STATUS_MAP.IN_PROGRESS.color }]}>{stats.inProgress}</Text>
           <Text style={styles.statLabel}>{STATUS_MAP.IN_PROGRESS.label}</Text>
+        </Card>
+
+        <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.WAITING.color, borderLeftWidth: 4 }]}>
+          <Text style={[styles.statNumber, { color: STATUS_MAP.WAITING.color }]}>{stats.waiting}</Text>
+          <Text style={styles.statLabel}>{STATUS_MAP.WAITING.label}</Text>
         </Card>
 
         <Card style={[styles.statCard, { borderLeftColor: STATUS_MAP.RESOLVED.color, borderLeftWidth: 4 }]}>

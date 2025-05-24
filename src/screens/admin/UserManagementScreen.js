@@ -264,18 +264,7 @@ const UserManagementScreen = () => {
     return role ? role.label : roleValue;
   };
 
-  const getStatusLabel = (status) => {
-    switch (status?.toUpperCase()) {
-      case 'ACTIVE':
-        return 'Aktif';
-      case 'INACTIVE':
-        return 'Pasif';
-      case 'SUSPENDED':
-        return 'Askıya Alınmış';
-      default:
-        return status || 'Bilinmiyor';
-    }
-  };
+
 
   const getStatusColor = (status) => {
     switch (status?.toUpperCase()) {
@@ -359,9 +348,7 @@ const UserManagementScreen = () => {
             <View style={styles.userInfo}>
               <View style={styles.userHeader}>
                 <Text style={styles.userName}>{item.first_name} {item.last_name}</Text>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                  <Text style={styles.statusText}>{getStatusLabel(item.status)}</Text>
-                </View>
+              
               </View>
               <Text style={styles.userEmail}>{item.email}</Text>
               <Text style={styles.userRole}>Rol: {getRoleLabel(item.role)}</Text>
