@@ -1,16 +1,23 @@
+// Importing from the centralized theme
+import { COLORS as THEME_COLORS } from './theme';
+
+// Re-exporting COLORS for backward compatibility
 export const COLORS = {
-  secondary: '#FF9800', // Turuncu
-  accent: '#673AB7',   // Mor
-  white: '#FFFFFF',
-  black: '#000000',
-  textLight: '#757575',
-  error: '#F44336',
-  success: '#4CAF50',
-  warning: '#FFC107',
-  primary: '#45C49C',
-  background: '#FFFFFF',
-  text: '#333333',
-  inputBackground: '#F8F8F8',
-  inputBorder: '#DDDDDD' ,
-  inputText: '#666666',
+  primary: THEME_COLORS.primary,
+  secondary: '#FF9800', // Keeping for backward compatibility
+  accent: '#673AB7',    // Keeping for backward compatibility
+  white: THEME_COLORS.white,
+  black: THEME_COLORS.black,
+  textLight: THEME_COLORS.textLight,
+  error: THEME_COLORS.error.text,
+  success: THEME_COLORS.success.text,
+  warning: '#FFC107',   // Keeping for backward compatibility
+  background: THEME_COLORS.background,
+  text: THEME_COLORS.text,
+  inputBackground: THEME_COLORS.inputBackground,
+  inputBorder: THEME_COLORS.border,
+  inputText: THEME_COLORS.placeholder,
 };
+
+// For smooth transition, the above keeps the old naming pattern
+// but pulls values from the new theme system.

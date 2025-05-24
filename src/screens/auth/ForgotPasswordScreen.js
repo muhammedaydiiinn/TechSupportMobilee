@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
@@ -10,6 +9,8 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
+import theme, { FONTS, SPACING, RADIUS } from '../../constants/theme';
+import { Button, FormInput } from '../../components/ui';
 import { authService } from '../../services/api';
 
 const ForgotPasswordScreen = ({ navigation }) => {
@@ -72,18 +73,13 @@ const ForgotPasswordScreen = ({ navigation }) => {
           Lütfen kayıtlı e-posta adresinizi girin. Şifre sıfırlama bağlantısı gönderilecektir.
         </Text>
         
-        <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="E-posta"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor={COLORS.inputText}
-          />
-        </View>
+        <FormInput
+          iconName="mail-outline"
+          placeholder="E-posta"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+        />
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         {success ? (
@@ -92,15 +88,12 @@ const ForgotPasswordScreen = ({ navigation }) => {
           </Text>
         ) : null}
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+        <Button
+          title={loading ? 'Gönderiliyor...' : 'Şifreyi Sıfırla'}
           onPress={handleResetPassword}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? 'Gönderiliyor...' : 'Şifreyi Sıfırla'}
-          </Text>
-        </TouchableOpacity>
+          loading={loading}
+          style={{ marginTop: SPACING.s }}
+        />
 
         <TouchableOpacity
           onPress={() => navigation.navigate('Login')}
@@ -119,82 +112,43 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   formContainer: {
-    padding: 20,
+    padding: SPACING.xl,
     flex: 1,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: FONTS.size.h1,
+    fontWeight: FONTS.weight.bold,
+    marginBottom: SPACING.l,
     textAlign: 'center',
     color: COLORS.text,
   },
   description: {
     textAlign: 'center',
-    marginBottom: 30,
-    color: COLORS.inputText,
-    fontSize: 14,
+    marginBottom: SPACING.xl,
+    color: COLORS.textLight,
+    fontSize: FONTS.size.normal,
     lineHeight: 20,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 10,
-    marginBottom: 15,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.inputBackground,
-  },
-  icon: {
-    marginRight: 10,
-    width: 24,
-  },
-  input: {
-    flex: 1,
-    padding: 15,
-    color: COLORS.text,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  buttonText: {
-    color: COLORS.white,
+  errorText: {
+    color: theme.colors.error.text,
     textAlign: 'center',
-    fontWeight: 'bold',
-    fontSize: 16,
+    marginBottom: SPACING.s,
+    fontSize: FONTS.size.normal,
+  },
+  successText: {
+    color: theme.colors.success.text,
+    textAlign: 'center',
+    marginBottom: SPACING.s,
+    fontSize: FONTS.size.normal,
   },
   backToLogin: {
-    marginTop: 20,
+    marginTop: SPACING.l,
   },
   backToLoginText: {
     textAlign: 'center',
     color: COLORS.primary,
-  },
-  errorText: {
-    color: 'red',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  successText: {
-    color: COLORS.primary,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
+    fontSize: FONTS.size.normal,
   },
 });
 

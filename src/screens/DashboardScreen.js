@@ -149,7 +149,7 @@ const DashboardScreen = ({ navigation }) => {
   return (
     <ScrollView style={styles.scrollView}>
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.email}</Text>
+        <Text style={styles.welcomeText}>Hoş Geldiniz, {user?.first_name || 'Kullanıcı'}</Text>
       </View>
 
       <View style={styles.statsContainer}>
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     color: colors.white,
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   statsContainer: {

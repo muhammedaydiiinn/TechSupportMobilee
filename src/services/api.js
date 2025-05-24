@@ -660,7 +660,7 @@ export const userService = {
       console.log('Mevcut kullanıcı bilgileri başarıyla alındı:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Mevcut kullanıcı bilgileri alınırken hata:', error);
+     // console.error('Mevcut kullanıcı bilgileri alınırken hata:', error);
       throw error;
     }
   },

@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
+import theme, { FONTS, SPACING, RADIUS } from '../../constants/theme';
+import { Button, FormInput } from '../../components/ui';
 import { authService } from '../../services/api';
 
 const RegisterScreen = ({ navigation }) => {
@@ -137,70 +137,49 @@ const RegisterScreen = ({ navigation }) => {
           <View style={styles.formContainer}>
             <Text style={styles.title}>Kayıt Ol</Text>
             
-            <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Ad"
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholderTextColor={COLORS.inputText}
-                autoCapitalize="words"
-              />
-            </View>
+            <FormInput
+              iconName="person-outline"
+              placeholder="Ad"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+            />
             
-            <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Soyad"
-                value={lastName}
-                onChangeText={setLastName}
-                placeholderTextColor={COLORS.inputText}
-                autoCapitalize="words"
-              />
-            </View>
+            <FormInput
+              iconName="person-outline"
+              placeholder="Soyad"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+            />
             
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="E-posta"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor={COLORS.inputText}
-              />
-            </View>
+            <FormInput
+              iconName="mail-outline"
+              placeholder="E-posta"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+            />
             
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Şifre"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholderTextColor={COLORS.inputText}
-              />
-            </View>
+            <FormInput
+              iconName="lock-closed-outline"
+              placeholder="Şifre"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
             
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Şifre Tekrarı"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                placeholderTextColor={COLORS.inputText}
-              />
-            </View>
+            <FormInput
+              iconName="lock-closed-outline"
+              placeholder="Şifre Tekrarı"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
 
             {error ? (
               <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={20} color="red" />
+                <Ionicons name="alert-circle" size={20} color={theme.colors.error.text} />
                 <Text style={styles.errorText}>
                   {typeof error === 'string' ? error : 'Kayıt işlemi sırasında bir hata oluştu'}
                 </Text>
@@ -209,24 +188,19 @@ const RegisterScreen = ({ navigation }) => {
 
             {success ? (
               <View style={styles.successContainer}>
-                <Ionicons name="checkmark-circle" size={20} color="#45C49C" />
+                <Ionicons name="checkmark-circle" size={20} color={theme.colors.success.text} />
                 <Text style={styles.successText}>
                   Kayıt başarılı! Giriş sayfasına yönlendiriliyorsunuz...
                 </Text>
               </View>
             ) : null}
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <Button
+              title="Kayıt Ol"
               onPress={handleRegister}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.buttonText}>Kayıt Ol</Text>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              style={{ marginTop: SPACING.s }}
+            />
 
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
@@ -247,92 +221,56 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   formContainer: {
-    padding: 20,
+    padding: SPACING.xl,
     flex: 1,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
+    fontSize: FONTS.size.h1,
+    fontWeight: FONTS.weight.bold,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
     color: COLORS.text,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 10,
-    marginBottom: 15,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.inputBackground,
-  },
-  icon: {
-    marginRight: 10,
-    width: 24,
-  },
-  input: {
-    flex: 1,
-    padding: 15,
-    color: COLORS.text,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: COLORS.white,
-    textAlign: 'center',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  loginLink: {
-    marginTop: 20,
-  },
-  loginText: {
-    textAlign: 'center',
-    color: COLORS.primary,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFE7E7',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 15,
+    backgroundColor: theme.colors.error.background,
+    padding: SPACING.m,
+    borderRadius: RADIUS.s,
+    marginBottom: SPACING.m,
+    borderWidth: 1,
+    borderColor: theme.colors.error.border,
   },
   errorText: {
-    color: 'red',
-    marginLeft: 10,
+    color: theme.colors.error.text,
+    marginLeft: SPACING.s,
     flex: 1,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
+    fontSize: FONTS.size.normal,
   },
   successContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E7F6E7',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 15,
+    backgroundColor: theme.colors.success.background,
+    padding: SPACING.m,
+    borderRadius: RADIUS.s,
+    marginBottom: SPACING.m,
+    borderWidth: 1,
+    borderColor: theme.colors.success.border,
   },
   successText: {
-    color: '#45C49C',
-    marginLeft: 10,
+    color: theme.colors.success.text,
+    marginLeft: SPACING.s,
     flex: 1,
+    fontSize: FONTS.size.normal,
+  },
+  loginLink: {
+    marginTop: SPACING.l,
+  },
+  loginText: {
+    textAlign: 'center',
+    color: COLORS.primary,
+    fontSize: FONTS.size.normal,
   },
 });
 

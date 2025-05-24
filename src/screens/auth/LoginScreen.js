@@ -2,11 +2,9 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Image,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,7 +12,9 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../../constants/colors';
+import theme, { FONTS, SPACING, RADIUS, getShadow } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button, FormInput } from '../../components/ui';
 import { CommonActions } from '@react-navigation/native';
 
 const LoginScreen = ({ navigation }) => {
@@ -38,17 +38,15 @@ const LoginScreen = ({ navigation }) => {
       console.log('Login result:', result);
       
       if (!result.success) {
-        setError(result.message || 'Giriş yapılırken bir hata oluştu');
+        Alert.alert(result.message);
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Giriş yapılırken bir hata oluştu');
+     // setError(error.message || 'Giriş yapılırken bir hata oluştu');
     } finally {
       setLoading(false);
     }
   };
-
-
 
   return (
     <KeyboardAvoidingView 
@@ -65,30 +63,21 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder="E-posta"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor={COLORS.inputText}
-            />
-          </View>
+          <FormInput
+            iconName="mail-outline"
+            placeholder="E-posta"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+          />
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.inputText} style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Şifre"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholderTextColor={COLORS.inputText}
-            />
-          </View>
+          <FormInput
+            iconName="lock-closed-outline"
+            placeholder="Şifre"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
 
           <TouchableOpacity 
             onPress={() => navigation.navigate('ForgotPassword')}
@@ -99,25 +88,17 @@ const LoginScreen = ({ navigation }) => {
 
           {error ? (
             <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={20} color="red" />
+              <Ionicons name="alert-circle" size={20} color={theme.colors.error.text} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <Button
+            title="Giriş Yap"
             onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={COLORS.white} />
-            ) : (
-              <Text style={styles.buttonText}>Giriş Yap</Text>
-            )}
-          </TouchableOpacity>
-
-        {/* Geliştirme ortamında test kullanıcısıyla giriş yapmak için */}
-    
+            loading={loading}
+            style={{ marginTop: SPACING.s }}
+          />
         </View>
 
         <TouchableOpacity 
@@ -141,119 +122,69 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: SPACING.xl,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: SPACING.xl,
   },
   logoPlaceholder: {
     width: 100,
     height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(69, 196, 156, 0.1)',
+    borderRadius: RADIUS.round,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)', // Light primary color
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.l,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: FONTS.size.h1,
+    fontWeight: FONTS.weight.bold,
     color: COLORS.primary,
-    marginBottom: 5,
+    marginBottom: SPACING.xs,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: FONTS.size.normal,
     color: COLORS.textLight,
   },
   formContainer: {
-    marginBottom: 30,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.inputBorder,
-    borderRadius: 10,
-    marginBottom: 15,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.inputBackground,
-  },
-  icon: {
-    marginRight: 10,
-    width: 24,
-  },
-  input: {
-    flex: 1,
-    padding: 15,
-    color: COLORS.text,
+    marginBottom: SPACING.xl,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
-    marginBottom: 20,
+    marginBottom: SPACING.l,
   },
   forgotPasswordText: {
     color: COLORS.primary,
-    fontSize: 14,
-  },
-  button: {
-    backgroundColor: COLORS.primary,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  buttonText: {
-    color: COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  testButton: {
-    backgroundColor: 'transparent',
-    padding: 15,
-    marginTop: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  testButtonText: {
-    color: COLORS.primary,
-    fontSize: 14,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
+    fontSize: FONTS.size.normal,
+    fontWeight: FONTS.weight.medium,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFE7E7',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 15,
+    backgroundColor: theme.colors.error.background,
+    padding: SPACING.m,
+    borderRadius: RADIUS.s,
+    marginBottom: SPACING.m,
+    borderWidth: 1,
+    borderColor: theme.colors.error.border,
   },
   errorText: {
-    color: 'red',
-    marginLeft: 10,
+    color: theme.colors.error.text,
+    marginLeft: SPACING.s,
     flex: 1,
+    fontSize: FONTS.size.normal,
   },
   registerLink: {
     alignItems: 'center',
   },
   registerText: {
-    fontSize: 14,
     color: COLORS.textLight,
+    fontSize: FONTS.size.normal,
   },
   registerAccent: {
-    fontWeight: 'bold',
     color: COLORS.primary,
+    fontWeight: FONTS.weight.semiBold,
   },
 });
 
