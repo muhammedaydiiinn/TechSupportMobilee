@@ -632,6 +632,36 @@ export const ticketService = {
       throw handleApiError(error);
     }
   },
+  
+  // Get Ticket Images
+  getTicketImages: async (ticketId) => {
+    try {
+      console.log('Ticket resimleri getiriliyor:', ticketId);
+      
+      // Use the api instance since we've fixed the baseURL
+      const response = await api.get(`/tickets/${ticketId}/images`);
+      
+      console.log('Ticket resimleri başarıyla alındı:', response.data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Ticket resimleri alınırken hata:', error);
+      console.error('Hata detayları:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Ticket resimleri alınırken bir hata oluştu',
+        data: []
+      };
+    }
+  }
 };
 
 export const userService = {

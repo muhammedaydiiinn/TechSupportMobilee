@@ -12,6 +12,7 @@ import {
   FlatList,
   Image,
   Platform,
+  Dimensions,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ticketService, equipmentService } from '../../services/api';
@@ -121,12 +122,19 @@ export default function TicketDetailScreen() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusNote, setStatusNote] = useState('');
 
+  // Add state for ticket images
+  const [ticketImages, setTicketImages] = useState([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+
   useEffect(() => {
     fetchTicketDetails();
     fetchUsers();
     fetchAllEquipments();
     fetchTicketEquipments();
     fetchAIResponses();
+    fetchTicketImages();
   }, [ticketId]);
 
   const fetchUsers = async () => {
@@ -648,6 +656,35 @@ export default function TicketDetailScreen() {
     );
   };
 
+  // Add function to fetch ticket images
+  const fetchTicketImages = async () => {
+    try {
+      setLoadingImages(true);
+      console.log('Fetching images for ticket:', ticketId);
+      const response = await ticketService.getTicketImages(ticketId);
+      console.log('Images response:', response);
+      
+      if (response && response.success && response.data) {
+        setTicketImages(response.data);
+      } else {
+        console.warn('No images found or error in response:', response?.message);
+        setTicketImages([]);
+      }
+    } catch (error) {
+      console.error('Ticket resimleri alınamadı:', error);
+      Alert.alert('Hata', 'Resimler yüklenirken bir sorun oluştu');
+      setTicketImages([]);
+    } finally {
+      setLoadingImages(false);
+    }
+  };
+
+  // Function to handle image preview
+  const handleImagePreview = (image) => {
+    setSelectedImage(image);
+    setShowImageModal(true);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -745,6 +782,49 @@ export default function TicketDetailScreen() {
               </Text>
             </View>
           </View>
+        </Card>
+
+        {/* Ticket Images Section */}
+        <Card style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="images-outline" size={24} color={colors.primary} />
+            <Text style={styles.sectionTitle}>Resimler</Text>
+          </View>
+          
+          {loadingImages ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : ticketImages.length > 0 ? (
+            <View style={styles.imagesContainer}>
+              <FlatList
+                data={ticketImages}
+                keyExtractor={(item, index) => `image-${index}-${item.id || item.file_name}`}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                renderItem={({ item, index }) => (
+                  <TouchableOpacity 
+                    style={styles.imageItem}
+                    onPress={() => handleImagePreview(item)}
+                  >
+                    <Image 
+                      source={{ uri: item.file_url }} 
+                      style={styles.imageThumb}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.imageInfo}>
+                      <Text style={styles.imageName} numberOfLines={1}>
+                        {item.file_name || `Resim ${index + 1}`}
+                      </Text>
+                      <Text style={styles.imageDate}>
+                        {new Date(item.created_at).toLocaleDateString('tr-TR')}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          ) : (
+            <Text style={styles.noDataText}>Herhangi bir resim eklenmemiş.</Text>
+          )}
         </Card>
 
         {/* AI Responses Section */}
@@ -1008,6 +1088,30 @@ export default function TicketDetailScreen() {
           {timeline.map(renderTimelineItem)}
         </View>
       </ScrollView>
+      
+      {/* Image Preview Modal */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <View style={styles.imageModalContainer}>
+          <TouchableOpacity 
+            style={styles.imageModalCloseButton}
+            onPress={() => setShowImageModal(false)}
+          >
+            <Ionicons name="close" size={28} color={COLORS.white} />
+          </TouchableOpacity>
+          {selectedImage && (
+            <Image 
+              source={{ uri: selectedImage.file_url }} 
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
       
       {/* Durum değiştirme modalı */}
       {renderStatusModal()}
@@ -1526,5 +1630,57 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginLeft: 5,
     fontWeight: '500',
+  },
+  imagesContainer: {
+    marginVertical: 10,
+  },
+  imageItem: {
+    width: 160,
+    height: 180,
+    marginRight: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  imageThumb: {
+    width: '100%',
+    height: 120,
+  },
+  imageInfo: {
+    padding: 8,
+  },
+  imageName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  imageDate: {
+    fontSize: 10,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  imageModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalCloseButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height * 0.7,
   },
 });
