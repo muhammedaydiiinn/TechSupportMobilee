@@ -11,6 +11,69 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { ticketService } from '../../services/api';
 import { COLORS } from '../../constants/colors';
+import { colors } from '../../theme/colors';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+
+// Durum sabitleri
+const STATUS_MAP = {
+  OPEN: {
+    value: 'OPEN',
+    label: 'Açık',
+    icon: 'open-outline',
+    color: colors.info
+  },
+  IN_PROGRESS: {
+    value: 'IN_PROGRESS',
+    label: 'İşlemde',
+    icon: 'time-outline',
+    color: colors.warning
+  },
+  WAITING: {
+    value: 'WAITING',
+    label: 'Beklemede',
+    icon: 'hourglass-outline',
+    color: colors.secondary
+  },
+  RESOLVED: {
+    value: 'RESOLVED',
+    label: 'Çözüldü',
+    icon: 'checkmark-circle-outline',
+    color: colors.success
+  },
+  CLOSED: {
+    value: 'CLOSED',
+    label: 'Kapalı',
+    icon: 'close-circle-outline',
+    color: colors.error
+  }
+};
+
+const PRIORITY_MAP = {
+  LOW: {
+    value: 'low',
+    label: 'Düşük',
+    icon: 'arrow-down-circle-outline',
+    color: colors.info
+  },
+  MEDIUM: {
+    value: 'medium',
+    label: 'Orta',
+    icon: 'remove-circle-outline',
+    color: colors.warning
+  },
+  HIGH: {
+    value: 'high',
+    label: 'Yüksek',
+    icon: 'arrow-up-circle-outline',
+    color: colors.error
+  },
+  CRITICAL: {
+    value: 'critical',
+    label: 'Kritik',
+    icon: 'alert-circle-outline',
+    color: colors.error
+  }
+};
 
 const MyTicketsScreen = () => {
   const [tickets, setTickets] = useState([]);
@@ -62,7 +125,13 @@ const MyTicketsScreen = () => {
       <View style={styles.ticketHeader}>
         <Text style={styles.ticketTitle}>{item.title}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-          <Text style={styles.statusText}>{item.status}</Text>
+          <Ionicons 
+            name={getStatusIcon(item.status)} 
+            size={14} 
+            color={COLORS.white} 
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
         </View>
       </View>
       <Text style={styles.ticketDescription} numberOfLines={2}>
@@ -73,36 +142,46 @@ const MyTicketsScreen = () => {
           {formatDate(item.created_at)}
         </Text>
         <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
-          <Text style={styles.priorityText}>{item.priority}</Text>
+          <Ionicons 
+            name={getPriorityIcon(item.priority)} 
+            size={14} 
+            color={COLORS.white} 
+            style={{ marginRight: 4 }}
+          />
+          <Text style={styles.priorityText}>{getPriorityText(item.priority)}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 
+  // Durum rengini alma
   const getStatusColor = (status) => {
-    switch (status.toLowerCase()) {
-      case 'open':
-        return COLORS.success;
-      case 'closed':
-        return COLORS.error;
-      case 'in_progress':
-        return COLORS.warning;
-      default:
-        return COLORS.gray;
-    }
+    return STATUS_MAP[status?.toUpperCase()]?.color || COLORS.gray;
   };
 
+  // Durum simgesini alma
+  const getStatusIcon = (status) => {
+    return STATUS_MAP[status?.toUpperCase()]?.icon || 'help-circle-outline';
+  };
+
+  // Durum metinlerini türkçeleştirme
+  const getStatusText = (status) => {
+    return STATUS_MAP[status?.toUpperCase()]?.label || status;
+  };
+
+  // Öncelik rengini alma
   const getPriorityColor = (priority) => {
-    switch (priority.toLowerCase()) {
-      case 'high':
-        return COLORS.error;
-      case 'medium':
-        return COLORS.warning;
-      case 'low':
-        return COLORS.success;
-      default:
-        return COLORS.gray;
-    }
+    return PRIORITY_MAP[priority?.toUpperCase()]?.color || COLORS.gray;
+  };
+
+  // Öncelik simgesini alma
+  const getPriorityIcon = (priority) => {
+    return PRIORITY_MAP[priority?.toUpperCase()]?.icon || 'help-circle-outline';
+  };
+
+  // Öncelik metinlerini türkçeleştirme
+  const getPriorityText = (priority) => {
+    return PRIORITY_MAP[priority?.toUpperCase()]?.label || priority;
   };
 
   if (loading) {
@@ -214,6 +293,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 4,
     marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   statusText: {
     color: COLORS.white,
@@ -238,6 +319,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   priorityText: {
     color: COLORS.white,
